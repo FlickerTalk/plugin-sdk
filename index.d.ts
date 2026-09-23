@@ -42,6 +42,12 @@ export interface PluginStore {
   forget(key: string): Promise<boolean>;
 }
 
+/**
+ * The app lends its icons at `./icon/<name>.svg` (Ionicons, MIT), to be painted with
+ * `mask-image` and `currentColor` so a plugin looks like the rest of FlickerTalk.
+ */
+export type PluginIcon = string;
+
 export interface FlickerTalk {
   /** Called when the app opens the plugin. Register it while the module loads. */
   onOpen(handler: (opened: PluginOpen) => void): void;
@@ -49,6 +55,9 @@ export interface FlickerTalk {
   /**
    * Asks the app to ask the user for a file, in the system's own picker. The plugin never opens
    * a picker itself and never sees a path. Resolves with `null` if the user picked nothing.
+   *
+   * Asking for `image/*` opens the photo picker, which is a sheet over the app: the user closes
+   * it and is still inside FlickerTalk.
    */
   pickFile(accept?: string): Promise<PluginFile | null>;
 
