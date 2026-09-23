@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flickertalk.com/schemas/module.schema.json",
+  "title": "FlickerTalk plugin manifest",
+  "description": "What module.json says about a plugin. The app reads it only after the catalogue's signature checks out (Plan §49–§50).",
+  "type": "object",
+  "required": ["id", "name", "version", "minCoreVersion", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "description": "Reverse domain name, lowercase; the folder the plugin is served from.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9]+)+$",
+      "maxLength": 128
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "minCoreVersion": {
+      "description": "The oldest FlickerTalk this plugin runs on (§51).",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "components": {
+      "description": "The web components it registers; the first one is what the app shows.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "type": "string", "pattern": "^ft-[a-z0-9-]+$" }
+    },
+    "summary": {
+      "description": "One line about what it does, for the catalogue. In English.",
+      "type": "string",
+      "maxLength": 200
+    },
+    "permissions": {
+      "description": "What it asks the user for. Installing grants none of it (§53).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": {
+          "description": "Hosts it may reach, never wildcards or URLs. The core checks every call against this (§55).",
+          "type": "array",
+          "maxItems": 8,
+          "items": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$" }
+        },
+        "messages": {
+          "description": "Whether it may read the message or text the user hands it. It never reads more.",
+          "enum": ["given", "none"]
+        },
+        "send": {
+          "description": "How far it goes when it writes in the chat: not at all, it fills the composer, or it sends.",
+          "enum": ["nothing", "propose", "auto"]
+        },
+        "print": {
+          "description": "Whether it may ask the phone to print what it made. The user picks the printer.",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

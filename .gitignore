@@ -1,5 +1,1 @@
 node_modules/
-dist/
-
-# Versioned on purpose (overrides the global git ignore)
-!CLAUDE.md

@@ -1,0 +1,22 @@
+{
+  "name": "@flickertalk/plugin-sdk",
+  "version": "0.1.0",
+  "description": "The contract between FlickerTalk and its plugins: the Plugin API types and the module.json schema",
+  "license": "MIT",
+  "type": "module",
+  "types": "index.d.ts",
+  "files": [
+    "index.d.ts",
+    "module.schema.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FlickerTalk/plugin-sdk.git"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1"
+  }
+}
