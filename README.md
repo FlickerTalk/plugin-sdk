@@ -29,7 +29,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | Llamada | Qué hace | Permiso |
 | --- | --- | --- |
 | `ft.onOpen(fn)` | lo que el usuario le entrega, y si la app va en oscuro | `messages` para el texto |
-| `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema | ninguno |
+| `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
 | `ft.send(name, mime, data)` | entrega un fichero al chat; lo envía la app | `send` |
 | `ft.say(text)` | deja un texto en la caja de escribir | `send: propose` |
 | `ft.save(name, mime, data)` | guarda un fichero en el teléfono | ninguno |
@@ -40,6 +40,27 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
+
+## Los iconos los presta el núcleo
+
+Un plugin no trae imágenes ni pide red, así que la app le presta sus iconos
+([Ionicons](https://ionic.io/ionicons), MIT) en `./icon/<nombre>.svg`. Se pintan con el color de
+la app, así que una herramienta se ve como el resto de FlickerTalk:
+
+```html
+<i class="i" style="--i:url(./icon/pencil-outline.svg)"></i>
+```
+
+```css
+.i {
+  display: block; width: 22px; height: 22px; background: currentColor;
+  mask: var(--i) center/contain no-repeat;
+}
+```
+
+Hay unos veinte: `pencil`, `eye`, `folder-open`, `download`, `send`, `image`, `refresh`, `crop`,
+`arrow-undo`, `resize`, `options`, `add`, `document-text`, `arrow-up`, `trash`, `square`, `grid`,
+`brush` y `close`, todos en su versión `-outline`. Si falta alguno, se añade al núcleo.
 
 ## Un plugin mínimo
 
