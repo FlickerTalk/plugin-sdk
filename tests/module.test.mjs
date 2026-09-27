@@ -74,3 +74,12 @@ test("what the app would refuse, the schema refuses first", () => {
     assert.ok(!validate(wrong), `${JSON.stringify(wrong)} should be refused`);
   }
 });
+
+// 2026-09-27: a viewer names exact kinds it also opens; the app refuses one with the network.
+test("a viewer names exact kinds of file", () => {
+  const viewer = { ...board, id: "com.flickertalk.pdfviewer", components: ["ft-pdf-viewer"], permissions: {}, opens: ["application/pdf"], views: ["application/pdf"] };
+  assert.ok(validate(viewer), JSON.stringify(validate.errors));
+  for (const wrong of [{ ...viewer, views: ["application/*"] }, { ...viewer, views: ["*/*"] }, { ...viewer, views: ["pdf"] }]) {
+    assert.equal(validate(wrong), false, JSON.stringify(wrong.views));
+  }
+});

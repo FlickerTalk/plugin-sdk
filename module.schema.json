@@ -32,6 +32,12 @@
       "type": "string",
       "maxLength": 200
     },
+    "views": {
+      "description": "The kinds of file it is the viewer of (2026-09-27): exact media types only, each also in opens. A tap on such a file in the chat opens it here without the user choosing, so a viewer may not ask for network.",
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.+_-]*/[a-z0-9][a-z0-9.+_-]*$" }
+    },
     "opens": {
       "description": "The kinds of file it opens (2026-09-27): media types like image/png, image/* or */* for any. The app offers \"open with\" for a message whose file matches, and the plugin gets the bytes in onOpen.",
       "type": "array",
