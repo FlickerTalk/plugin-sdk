@@ -43,6 +43,10 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.openChat(ref)` | vuelve a la conversación de la que salió el mensaje (`ref` de `onOpen`), sin saber con quién es (2026-09-27) | ninguno |
 | `ft.close()` | cierra su ventana | ninguno |
 
+El manifiesto puede decir además de qué tipos es **el visor** (`views`, 2026-09-27): tipos
+exactos, cada uno también en `opens`, y sin `network`. Tocar en el chat un fichero de ese tipo lo
+abre en el plugin sin pasar por «Abrir con», así que no puede sacar el documento del teléfono.
+
 `ft.onOpen` trae además, desde 2026-09-27, `lang` (el idioma de la app), `file` (el fichero con
 el que se abrió el plugin, si el manifiesto dice que lo `opens`), `ref` (el camino de vuelta al
 mensaje), `reminder` (el aviso que lo abrió) y `live` (si el canal está disponible ahora). A un

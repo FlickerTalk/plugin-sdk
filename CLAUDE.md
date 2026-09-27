@@ -34,3 +34,7 @@ firma Ed25519 → validar manifest → instalar → registrar el Web Component.
   con permisos mínimos declarados; deben funcionar en el sandbox limitado de iOS (`§52`). Una
   capacidad nativa nueva se añade al Core y sube `minCoreVersion`, nunca va en el plugin (`§51`).
 - Pendiente: quién firma los plugins de la comunidad (el autor, el catálogo o ambos, `§50`).
+
+- `views` (2026-09-27): de qué tipos de fichero es el visor el plugin. Tipos exactos (sin `*`),
+  cada uno también en `opens`, y nunca junto a `network`; la app lo comprueba al abrir el paquete
+  y el esquema rechaza los comodines. Un manifiesto sin `views` sigue valiendo.

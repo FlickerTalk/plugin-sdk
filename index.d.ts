@@ -22,7 +22,8 @@ export interface PluginOpen {
   dark: boolean;
   /** The language of the app (`es`, `pt`, `zh-CN`…), so the plugin can speak it (2026-09-27). */
   lang: string;
-  /** The file the user opened with this plugin ("open with"), if the manifest says it `opens`
+  /** The file the user opened with this plugin ("open with", or a tap when the manifest says
+   *  it `views` the kind), if the manifest says it `opens`
    *  that kind; null otherwise. Only a file that is on the phone whole, up to 32 MB. */
   file: PluginFile | null;
   /** A way back to the message it was opened with, for `openChat`; says nothing of who it is
