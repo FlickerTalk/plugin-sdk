@@ -21,6 +21,32 @@ const manifest = {
   permissions: { messages: "given", send: "propose", network: ["api.example.com"], print: false },
 };
 
+// 2026-09-27: the board, the notes and the drive ask for the live channel, reminders, the cloud
+// and room, and say which kinds of file they open.
+const board = {
+  id: "com.flickertalk.board",
+  name: "Board",
+  version: "1.0.0",
+  minCoreVersion: "1.1.0",
+  components: ["ft-board"],
+  opens: ["application/x-ftboard", "image/*"],
+  permissions: { send: "propose", live: true, remind: false, drive: true, storage: "large" },
+};
+
+test("a plugin may ask for the live channel, reminders, the cloud and room, and say what it opens", () => {
+  assert.ok(validate(board), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...board, opens: ["*/*"] }), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { ...board, opens: ["png"] },
+    { ...board, opens: ["*/png"] },
+    { ...board, opens: ["image/*; q=1"] },
+    { ...board, permissions: { storage: "huge" } },
+    { ...board, permissions: { live: "yes" } },
+  ]) {
+    assert.ok(!validate(wrong), `${JSON.stringify(wrong)} should be refused`);
+  }
+});
+
 test("a manifest with everything it may say is valid", () => {
   assert.ok(validate(manifest), JSON.stringify(validate.errors));
 });

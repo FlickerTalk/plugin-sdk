@@ -32,6 +32,12 @@
       "type": "string",
       "maxLength": 200
     },
+    "opens": {
+      "description": "The kinds of file it opens (2026-09-27): media types like image/png, image/* or */* for any. The app offers \"open with\" for a message whose file matches, and the plugin gets the bytes in onOpen.",
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "pattern": "^(\\*/\\*|[a-z0-9][a-z0-9.+_-]*/(\\*|[a-z0-9][a-z0-9.+_-]*))$" }
+    },
     "permissions": {
       "description": "What it asks the user for. Installing grants none of it (§53).",
       "type": "object",
@@ -54,6 +60,22 @@
         "print": {
           "description": "Whether it may ask the phone to print what it made. The user picks the printer.",
           "type": "boolean"
+        },
+        "live": {
+          "description": "Whether it may talk to the same plugin on the other side of a conversation, over the direct connection, encrypted; never through a server (2026-09-27).",
+          "type": "boolean"
+        },
+        "remind": {
+          "description": "Whether it may set reminders: a notification on this phone at a time it picks (2026-09-27).",
+          "type": "boolean"
+        },
+        "drive": {
+          "description": "Whether it may keep files in the user's own cloud through the core's vault, encrypted on the phone (2026-09-27).",
+          "type": "boolean"
+        },
+        "storage": {
+          "description": "How much it may keep in its records: small (4 MB, the default) or large (256 MB) (2026-09-27).",
+          "enum": ["small", "large"]
         }
       }
     }
