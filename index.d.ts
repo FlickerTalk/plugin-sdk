@@ -20,6 +20,183 @@ export interface PluginOpen {
   text: string;
   /** Whether the app is showing dark, so the plugin can paint like the rest of it. */
   dark: boolean;
+  /** The language of the app (`es`, `pt`, `zh-CN`…), so the plugin can speak it (2026-09-27). */
+  lang: string;
+  /** The file the user opened with this plugin ("open with"), if the manifest says it `opens`
+   *  that kind; null otherwise. Only a file that is on the phone whole, up to 32 MB. */
+  file: PluginFile | null;
+  /** A way back to the message it was opened with, for `openChat`; says nothing of who it is
+   *  with. Null when it was not opened from a message. */
+  ref: string | null;
+  /** The id of the reminder the user tapped to open it, if that is why it opened; null otherwise. */
+  reminder: string | null;
+  /** Whether `live` may reach a twin on the other side right now: the permission was granted
+   *  and the plugin is open inside a conversation. */
+  live: boolean;
+}
+
+/** One record of the plugin's own, as `records.keys` lists it. */
+export type RecordKey = string;
+
+/** How much of its room a plugin uses, and how much it has, in bytes. */
+export interface RecordUsage {
+  used: number;
+  quota: number;
+}
+
+/**
+ * What a plugin keeps beyond its settings (2026-09-27): notes, boards, anything up to the room
+ * the user granted it (`storage`: 4 MB, or 256 MB with `large`). Values are strings: JSON, or
+ * base64 for bytes; one record holds up to 16 MB. Apart from every other plugin, and gone with it.
+ */
+export interface PluginRecords {
+  get(key: string): Promise<string | null>;
+  /** Resolves false when there is no room left. */
+  set(key: string, value: string): Promise<boolean>;
+  forget(key: string): Promise<boolean>;
+  /** The keys that start with `prefix`, in order. */
+  keys(prefix?: string): Promise<RecordKey[]>;
+  usage(): Promise<RecordUsage>;
+}
+
+/** A reminder this plugin set. */
+export interface PluginReminder {
+  plugin: string;
+  id: string;
+  /** Milliseconds since the epoch. */
+  at: number;
+  /** What the notification says, if the user allows content on the lock screen. */
+  text: string;
+}
+
+/**
+ * A notification on this phone at a time the plugin picks (2026-09-27). Needs the `remind`
+ * permission. The OS is only the alarm clock: the core keeps the truth and sets it again after a
+ * reboot. Tapping the notification opens the plugin with `reminder` set to the id.
+ */
+export interface PluginReminders {
+  /** Sets, or moves, the reminder `id`. `text` is optional and may be shown on the lock screen. */
+  set(id: string, at: number, text?: string): Promise<boolean>;
+  cancel(id: string): Promise<boolean>;
+  list(): Promise<PluginReminder[]>;
+}
+
+/**
+ * The live channel (2026-09-27): what this plugin says to the same plugin on the other side of
+ * the conversation, over the direct connection the two phones have, encrypted like everything
+ * else. Never through the mailbox, never through a server, never stored. Needs the `live`
+ * permission on both phones. `data` is base64; at most 48 KB a message.
+ */
+export interface PluginLive {
+  /** Resolves false when the other side cannot be reached right now (no direct connection). */
+  send(data: string): Promise<boolean>;
+  /** What the other side said, as base64. */
+  onMessage(handler: (data: string) => void): void;
+}
+
+/** Where the user's cloud stands (plan-drive, 2026-09-27). */
+export interface DriveStatus {
+  /** `none`: no cloud; `empty`: logged in, no drive yet; `locked`: a drive from another phone,
+   *  needs its recovery code; `ready`. */
+  state: "none" | "empty" | "locked" | "ready";
+  provider: string | null;
+  drive: {
+    files: number;
+    folders: number;
+    /** Bytes of files in the drive. */
+    used: number;
+    /** Uploads waiting for the network. */
+    pending: number;
+    quota: { used: number; total: number } | null;
+    backupAt: number | null;
+  } | null;
+  problem: string | null;
+}
+
+export interface DriveFolder {
+  id: string;
+  name: string;
+  parent: string | null;
+  modified: number;
+}
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  parent: string | null;
+  size: number;
+  mime: string;
+  modified: number;
+}
+
+/** An upload that waits on the phone for the network, with why it waits. */
+export interface DrivePending {
+  blob: string;
+  name: string;
+  parent: string | null;
+  size: number;
+  mime: string;
+  error: string;
+}
+
+export interface DriveListing {
+  folders: DriveFolder[];
+  files: DriveFile[];
+  pending: DrivePending[];
+}
+
+export interface DriveBackup {
+  at: number;
+  files: number;
+  dbSize: number;
+}
+
+/**
+ * The user's own cloud (plan-drive, 2026-09-27): a drive of files, sealed on the phone before
+ * anything leaves it, in the user's Google Drive. The core does all of it: the login (through
+ * the system browser), the sealing, the cloud. The plugin sees names, sizes and states, never
+ * bytes, tokens or the recovery code. Needs the `drive` permission; every call resolves `false`
+ * without it, or when it could not be done.
+ *
+ * A plugin granted `drive` that also says it `opens` files is handed a file's name and kind in
+ * `onOpen`, not its bytes: it keeps the file with `keep`, by the ref, whatever its size.
+ */
+export interface PluginDrive {
+  status(): Promise<DriveStatus | false>;
+  /** Logs in through the system browser. Only `"google"` in this version. */
+  connect(provider?: "google"): Promise<DriveStatus | false>;
+  /** Makes the drive in a cloud that has none; resolves with the recovery code, to show once. */
+  setup(): Promise<string | false>;
+  /** Opens, on this phone, a drive made on another, with its recovery code. */
+  unlock(code: string): Promise<boolean>;
+  /** Forgets the cloud on this phone. The drive stays in the cloud, sealed. */
+  disconnect(): Promise<boolean>;
+  /** What a folder holds; `null` or nothing for the root. */
+  list(parent?: string | null): Promise<DriveListing | false>;
+  mkdir(name: string, parent?: string | null): Promise<string | false>;
+  rename(id: string, name: string): Promise<boolean>;
+  move(id: string, parent?: string | null): Promise<boolean>;
+  /** Removes a file, or a folder with everything in it. */
+  remove(id: string): Promise<boolean>;
+  /** The app opens the picker; what the user picks is sealed and uploaded. How many went. */
+  upload(parent?: string | null): Promise<number | false>;
+  /** Keeps the file this plugin was opened with (`PluginOpen.ref`), without its bytes. */
+  keep(parent?: string | null): Promise<boolean>;
+  /** Brings a file down and opens it in the viewer the user picks. */
+  open(id: string): Promise<boolean>;
+  /** Brings a file down and copies it to the phone's Downloads. */
+  save(id: string): Promise<boolean>;
+  /** Sends a file of the drive to the conversation, as the `send` permission allows. */
+  send(id: string): Promise<boolean>;
+  /** Tries again the uploads that wait; how many still wait. */
+  retry(): Promise<number | false>;
+  /** Forgets an upload that waits. */
+  cancel(blob: string): Promise<boolean>;
+  /** Puts a sealed copy of the phone (history, key, files) in the drive. */
+  backup(): Promise<DriveBackup | false>;
+  backupInfo(): Promise<DriveBackup | null | false>;
+  /** Brings the backup down; the app restarts and swaps it in. */
+  restore(): Promise<DriveBackup | false>;
 }
 
 /** What a call the core made for the plugin brought back. `body` is base64. */
@@ -82,6 +259,21 @@ export interface FlickerTalk {
 
   /** This plugin's own memory. The frame has no origin, so the browser gives it no storage. */
   store: PluginStore;
+
+  /** What it keeps beyond its settings (2026-09-27), within the room the user granted. */
+  records: PluginRecords;
+
+  /** Reminders on this phone (2026-09-27). Needs `remind`. */
+  remind: PluginReminders;
+
+  /** The channel to its twin on the other side (2026-09-27). Needs `live`. */
+  live: PluginLive;
+
+  /**
+   * Goes back to the conversation a `ref` came from (`PluginOpen.ref`). Resolves false if the
+   * message or the contact is no longer there. The plugin never learns who it was.
+   */
+  openChat(ref: string): Promise<boolean>;
 
   /** Closes the plugin's window. */
   close(): void;
