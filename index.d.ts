@@ -98,8 +98,9 @@ export interface PluginLive {
 /** Where the user's cloud stands (plan-drive, 2026-09-27). */
 export interface DriveStatus {
   /** `none`: no cloud; `empty`: logged in, no drive yet; `locked`: a drive from another phone,
-   *  needs its recovery code; `ready`. */
-  state: "none" | "empty" | "locked" | "ready";
+   *  opened with its recovery phrase in Settings; `outdated`: a drive of an earlier version, set
+   *  up again in Settings (2026-09-28); `ready`. */
+  state: "none" | "empty" | "locked" | "outdated" | "ready";
   provider: string | null;
   drive: {
     files: number;
@@ -166,10 +167,9 @@ export interface PluginDrive {
   status(): Promise<DriveStatus | false>;
   /** Logs in through the system browser. Only `"google"` in this version. */
   connect(provider?: "google"): Promise<DriveStatus | false>;
-  /** Makes the drive in a cloud that has none; resolves with the recovery code, to show once. */
-  setup(): Promise<string | false>;
-  /** Opens, on this phone, a drive made on another, with its recovery code. */
-  unlock(code: string): Promise<boolean>;
+  // No `setup` or `unlock` (2026-09-28): making the drive and opening one from another phone
+  // take the user's recovery phrase, which is typed only in the app's Settings → Backup and
+  // never crosses a plugin's frame. With the drive `empty`, `outdated` or `locked`, say so.
   /** Forgets the cloud on this phone. The drive stays in the cloud, sealed. */
   disconnect(): Promise<boolean>;
   /** What a folder holds; `null` or nothing for the root. */
