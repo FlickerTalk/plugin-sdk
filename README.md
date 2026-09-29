@@ -36,7 +36,22 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.print(name, mime, data)` | imprime; la impresora la elige el usuario | `print` |
 | `ft.fetch(url, options)` | una llamada que hace el núcleo, solo a los hosts concedidos | `network` |
 | `ft.store.get/set/forget` | la memoria del plugin (64 KB por clave, 64 claves) | ninguno |
+| `ft.records.get/set/forget/keys/usage` | lo que guarda más allá de sus ajustes (notas, pizarras): 4 MB, o 256 MB con `storage: large` (2026-09-27) | `storage` para el tamaño grande |
+| `ft.remind.set/cancel/list` | un aviso en este teléfono a la hora que elija; al tocarlo se abre el plugin con `reminder` (2026-09-27) | `remind` |
+| `ft.live.send/onMessage` | hablar con el mismo plugin al otro lado de la conversación, por la conexión directa, cifrado; nunca por el servidor (2026-09-27) | `live` en los dos teléfonos |
+| `ft.drive.status/connect/list/mkdir/rename/move/remove/upload/keep/open/save/send/retry/cancel/backup/restore/disconnect` | la nube del propio usuario (Google Drive): el núcleo hace el login, sella en el teléfono y sube; el plugin ve nombres y tamaños, nunca bytes, tokens ni la frase de recuperación (2026-09-27). Crear el drive y abrir uno de otro teléfono se hace solo en Ajustes → Copia de seguridad de la app (2026-09-28) | `drive` |
+| `ft.openChat(ref)` | vuelve a la conversación de la que salió el mensaje (`ref` de `onOpen`), sin saber con quién es (2026-09-27) | ninguno |
 | `ft.close()` | cierra su ventana | ninguno |
+
+El manifiesto puede decir además de qué tipos es **el visor** (`views`, 2026-09-27): tipos
+exactos, cada uno también en `opens`, y sin `network`. Tocar en el chat un fichero de ese tipo lo
+abre en el plugin sin pasar por «Abrir con», así que no puede sacar el documento del teléfono.
+
+`ft.onOpen` trae además, desde 2026-09-27, `lang` (el idioma de la app), `file` (el fichero con
+el que se abrió el plugin, si el manifiesto dice que lo `opens`), `ref` (el camino de vuelta al
+mensaje), `reminder` (el aviso que lo abrió) y `live` (si el canal está disponible ahora). A un
+plugin con `drive` que `opens` ficheros se le entrega el nombre y el tipo del fichero, no sus
+bytes: lo guarda en la nube con `ft.drive.keep`, del tamaño que sea.
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
