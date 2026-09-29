@@ -39,7 +39,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.records.get/set/forget/keys/usage` | lo que guarda más allá de sus ajustes (notas, pizarras): 4 MB, o 256 MB con `storage: large` (2026-09-27) | `storage` para el tamaño grande |
 | `ft.remind.set/cancel/list` | un aviso en este teléfono a la hora que elija; al tocarlo se abre el plugin con `reminder` (2026-09-27) | `remind` |
 | `ft.live.send/onMessage` | hablar con el mismo plugin al otro lado de la conversación, por la conexión directa, cifrado; nunca por el servidor (2026-09-27) | `live` en los dos teléfonos |
-| `ft.drive.status/connect/setup/unlock/list/mkdir/rename/move/remove/upload/keep/open/save/send/retry/cancel/backup/restore/disconnect` | la nube del propio usuario (Google Drive): el núcleo hace el login, sella en el teléfono y sube; el plugin ve nombres y tamaños, nunca bytes, tokens ni el código de recuperación (2026-09-27) | `drive` |
+| `ft.drive.status/connect/list/mkdir/rename/move/remove/upload/keep/open/save/send/retry/cancel/backup/restore/disconnect` | la nube del propio usuario (Google Drive): el núcleo hace el login, sella en el teléfono y sube; el plugin ve nombres y tamaños, nunca bytes, tokens ni la frase de recuperación (2026-09-27). Crear el drive y abrir uno de otro teléfono se hace solo en Ajustes → Copia de seguridad de la app (2026-09-28) | `drive` |
 | `ft.openChat(ref)` | vuelve a la conversación de la que salió el mensaje (`ref` de `onOpen`), sin saber con quién es (2026-09-27) | ninguno |
 | `ft.close()` | cierra su ventana | ninguno |
 
