@@ -9,7 +9,10 @@
   "if": { "properties": { "kind": { "const": "game" } }, "required": ["kind"] },
   "then": {
     "properties": {
-      "permissions": { "propertyNames": { "enum": ["live", "send"] } },
+      "permissions": {
+        "propertyNames": { "enum": ["live", "send"] },
+        "properties": { "send": { "enum": ["nothing", "propose"] } }
+      },
       "opens": { "maxItems": 0 },
       "views": { "maxItems": 0 }
     }
