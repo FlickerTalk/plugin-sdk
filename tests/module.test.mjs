@@ -83,3 +83,24 @@ test("a viewer names exact kinds of file", () => {
     assert.equal(validate(wrong), false, JSON.stringify(wrong.views));
   }
 });
+
+// 2026-10-02: the location plugin asks for the phone's current position, once, while the app is
+// open. A yes or a no: there is no "always", no background and no live sharing to ask for.
+test("a plugin may ask for the phone's current position, and only as a yes or a no", () => {
+  const location = {
+    id: "com.flickertalk.location",
+    name: "Location",
+    version: "1.0.0",
+    minCoreVersion: "1.3.0",
+    components: ["ft-location"],
+    permissions: { location: true, send: "propose" },
+  };
+  assert.ok(validate(location), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { ...location, permissions: { location: "always" } },
+    { ...location, permissions: { location: "background" } },
+    { ...location, permissions: { location: 1 } },
+  ]) {
+    assert.equal(validate(wrong), false, JSON.stringify(wrong.permissions));
+  }
+});
