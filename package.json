@@ -1,6 +1,6 @@
 {
   "name": "@flickertalk/plugin-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The contract between FlickerTalk and its plugins: the Plugin API types and the module.json schema",
   "license": "MIT",
   "type": "module",
