@@ -6,6 +6,14 @@
   "type": "object",
   "required": ["id", "name", "version", "minCoreVersion", "components"],
   "additionalProperties": false,
+  "if": { "properties": { "kind": { "const": "game" } }, "required": ["kind"] },
+  "then": {
+    "properties": {
+      "permissions": { "propertyNames": { "enum": ["live", "send"] } },
+      "opens": { "maxItems": 0 },
+      "views": { "maxItems": 0 }
+    }
+  },
   "properties": {
     "id": {
       "description": "Reverse domain name, lowercase; the folder the plugin is served from.",
@@ -26,6 +34,11 @@
       "minItems": 1,
       "maxItems": 8,
       "items": { "type": "string", "pattern": "^ft-[a-z0-9-]+$" }
+    },
+    "kind": {
+      "description": "What it is to the user (2026-10-02): a tool, opened from the chat, \"open with\" or as a viewer; or a game, opened from the games with a contact. A tool unless it says otherwise. A game may ask only for live and send, and opens no file; it needs minCoreVersion 1.3.0 or newer to be published.",
+      "enum": ["tool", "game"],
+      "default": "tool"
     },
     "summary": {
       "description": "One line about what it does, for the catalogue. In English.",
