@@ -82,6 +82,10 @@
         "storage": {
           "description": "How much it may keep in its records: small (4 MB, the default) or large (256 MB) (2026-09-27).",
           "enum": ["small", "large"]
+        },
+        "location": {
+          "description": "Whether it may ask for the phone's current position, once, while the app is open; the phone asks the user the first time (2026-10-02).",
+          "type": "boolean"
         }
       }
     }
