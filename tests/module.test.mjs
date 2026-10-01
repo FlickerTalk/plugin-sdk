@@ -83,3 +83,43 @@ test("a viewer names exact kinds of file", () => {
     assert.equal(validate(wrong), false, JSON.stringify(wrong.views));
   }
 });
+
+// 2026-10-02 (plan of the games): a plugin is a tool unless it says it is a game. A game may talk
+// to its twin and write in the chat, and nothing else; it is never handed a file. The same cases
+// as `ft-plugins` (`a_game_may_ask_only_for_the_live_channel_and_sending`).
+const chess = {
+  id: "com.flickertalk.game.chess",
+  name: "Chess",
+  version: "1.0.0",
+  minCoreVersion: "1.3.0",
+  components: ["ft-chess"],
+  kind: "game",
+  permissions: { live: true, send: "propose" },
+};
+
+test("a plugin says whether it is a tool or a game", () => {
+  assert.ok(validate(chess), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...board, kind: "tool" }), JSON.stringify(validate.errors));
+  assert.ok(validate(board), "a tool unless it says otherwise");
+  assert.ok(!validate({ ...board, kind: "widget" }), "a kind the app does not know");
+});
+
+test("a game may ask only for the live channel and sending, and opens no file", () => {
+  assert.ok(validate((({ permissions, ...rest }) => rest)(chess)), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { network: ["api.example.com"] },
+    { messages: "given" },
+    { print: true },
+    { remind: true },
+    { drive: true },
+    { storage: "large" },
+  ]) {
+    const game = { ...chess, permissions: { live: true, ...wrong } };
+    assert.ok(!validate(game), `a game with ${JSON.stringify(wrong)} should be refused`);
+    assert.ok(validate({ ...game, kind: "tool" }), `a tool with ${JSON.stringify(wrong)} is fine`);
+  }
+  for (const wrong of [{ opens: ["image/*"] }, { opens: ["application/x-ftchess"], views: ["application/x-ftchess"] }]) {
+    assert.ok(!validate({ ...chess, ...wrong }), `a game with ${JSON.stringify(wrong)} should be refused`);
+    assert.ok(validate({ ...chess, ...wrong, kind: "tool" }), `a tool with ${JSON.stringify(wrong)} is fine`);
+  }
+});

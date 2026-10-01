@@ -47,6 +47,11 @@ El manifiesto puede decir además de qué tipos es **el visor** (`views`, 2026-0
 exactos, cada uno también en `opens`, y sin `network`. Tocar en el chat un fichero de ese tipo lo
 abre en el plugin sin pasar por «Abrir con», así que no puede sacar el documento del teléfono.
 
+Y qué es (`kind`, 2026-10-02): `"tool"` (por defecto) o `"game"`. Una herramienta se abre desde
+el chat, «Abrir con» o como visor; un juego, desde la sección de juegos y con un contacto. Un juego
+solo puede pedir `live` y `send`, no `opens` ni `views` (nunca saca nada de la conversación), y
+pide `minCoreVersion` 1.3.0 o más: una app anterior lo enseñaría como una herramienta.
+
 `ft.onOpen` trae además, desde 2026-09-27, `lang` (el idioma de la app), `file` (el fichero con
 el que se abrió el plugin, si el manifiesto dice que lo `opens`), `ref` (el camino de vuelta al
 mensaje), `reminder` (el aviso que lo abrió) y `live` (si el canal está disponible ahora). A un
