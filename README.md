@@ -67,6 +67,18 @@ este teléfono: el otro tiene otro, así que no se envía, tampoco por `live`. L
 por conversación (una partida, una lista) va bajo ese id. Abierto fuera de una conversación (desde
 Ajustes), `chat` no está.
 
+**Los colores de la app** (desde la app 1.3.0, 2026-10-03): el marco del plugin está aislado, así
+que la app le pone en la raíz sus colores como las variables de Ionic, y los cambia en el momento si
+el usuario pasa de oscuro a claro o cambia de colores con el plugin abierto: `--ion-background-color`
+(fondo), `--ion-text-color` (texto), `--ion-color-medium` (texto secundario),
+`--ion-item-background` (superficie de una tarjeta o una fila), `--ion-border-color`,
+`--ion-color-primary`, `--ion-color-primary-contrast` (texto sobre el primario),
+`--ion-color-success` y `--ion-color-danger`. Se usan siempre con un valor de respaldo, porque una
+app anterior a la 1.3.0 no los pone: `color: var(--ion-text-color, #222)`. `onOpen` trae `dark`
+(`true` si la app está en oscuro; la raíz lleva además `data-dark` y `color-scheme`) y, para quien
+pinta en un `canvas`, `theme` con los mismos valores. No llega nada más de la app: ni fuentes ni
+datos.
+
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
 
