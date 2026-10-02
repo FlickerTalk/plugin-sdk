@@ -319,6 +319,17 @@ export interface FlickerTalk {
 
   /** Closes the plugin's window. */
   close(): void;
+
+  /**
+   * Called when the window is about to close (from app 1.3.0): the app's ✕, Android's Back,
+   * leaving the conversation, or the plugin's own `close()`. It is only to say goodbye to the
+   * other side (`live.send` still works meanwhile): you get a few tenths of a second at most,
+   * after which the window goes whether the handler finished or not. Keep saving immediately, as
+   * always; never leave saving for this. The handler may return a promise, and runs once.
+   * Register it while the module loads. An older app does not have it, so ask first:
+   * `if (ft.onClose) ft.onClose(() => session.stop());`
+   */
+  onClose?(handler: () => void | Promise<void>): void;
 }
 
 declare global {

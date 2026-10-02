@@ -43,6 +43,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.location()` | dónde está el teléfono ahora, una sola vez y solo con la app abierta: `{lat, lon, accuracy, at}` (metros y milisegundos), o `null` si el usuario o el teléfono se niegan, la ubicación está apagada o no hay posición en ~15 s. El teléfono pregunta la primera vez. Para compartirla, el plugin deja un URI `geo:` en la caja de escribir con `say` (RFC 5870, `geo:40.41680,-3.70380;u=35`) y la envía el usuario; el otro lado ve una tarjeta que abre su propia app de mapas, sin plugin y sin cargar ningún mapa (2026-10-02) | `location` |
 | `ft.openChat(ref)` | vuelve a la conversación de la que salió el mensaje (`ref` de `onOpen`), sin saber con quién es (2026-09-27) | ninguno |
 | `ft.close()` | cierra su ventana | ninguno |
+| `ft.onClose(fn)` | avisa de que la ventana se va a cerrar, para despedirse del otro lado (desde la app 1.3.0) | ninguno |
 
 El manifiesto puede decir además de qué tipos es **el visor** (`views`, 2026-09-27): tipos
 exactos, cada uno también en `opens`, y sin `network`. Tocar en el chat un fichero de ese tipo lo
@@ -78,6 +79,18 @@ app anterior a la 1.3.0 no los pone: `color: var(--ion-text-color, #222)`. `onOp
 (`true` si la app está en oscuro; la raíz lleva además `data-dark` y `color-scheme`) y, para quien
 pinta en un `canvas`, `theme` con los mismos valores. No llega nada más de la app: ni fuentes ni
 datos.
+
+**Despedirse al cerrar** (desde la app 1.3.0, 2026-10-02): cuando la ventana se va a cerrar (la ✕
+de la app, el botón Atrás de Android, salir de la conversación o el propio `ft.close()`), la app
+llama a lo registrado con `ft.onClose`, que puede devolver una promesa. Sirve solo para despedirse
+del otro lado: mientras tanto `ft.live.send` sigue funcionando, pero hay unas décimas de segundo
+como mucho y después la ventana se cierra, haya terminado o no. Lo que haya que guardar se guarda en
+el momento, como siempre, nunca al cerrar. No da ningún permiso nuevo. Una app anterior no lo tiene,
+así que se pregunta antes:
+
+```js
+if (ft.onClose) ft.onClose(() => session.stop()); // stop() manda el bye si hay sesión en directo
+```
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
