@@ -47,11 +47,24 @@ El manifiesto puede decir además de qué tipos es **el visor** (`views`, 2026-0
 exactos, cada uno también en `opens`, y sin `network`. Tocar en el chat un fichero de ese tipo lo
 abre en el plugin sin pasar por «Abrir con», así que no puede sacar el documento del teléfono.
 
+Y qué es (`kind`, 2026-10-02): `"tool"` (por defecto) o `"game"`. Una herramienta se abre desde
+el chat, «Abrir con» o como visor; un juego, desde la sección de juegos y con un contacto. Un juego
+solo puede pedir `live` y `send` (`propose` como mucho: nunca envía por su cuenta), no `opens` ni
+`views` (nunca saca nada de la conversación), y pide `minCoreVersion` 1.3.0 o más: una app
+anterior lo enseñaría como una herramienta.
+
 `ft.onOpen` trae además, desde 2026-09-27, `lang` (el idioma de la app), `file` (el fichero con
 el que se abrió el plugin, si el manifiesto dice que lo `opens`), `ref` (el camino de vuelta al
 mensaje), `reminder` (el aviso que lo abrió) y `live` (si el canal está disponible ahora). A un
 plugin con `drive` que `opens` ficheros se le entrega el nombre y el tipo del fichero, no sus
 bytes: lo guarda en la nube con `ft.drive.keep`, del tamaño que sea.
+
+Abierto en una conversación, `ft.onOpen` trae también `chat` (2026-10-02): un id opaco de esa
+conversación (43 caracteres de `[A-Za-z0-9_-]`), el mismo cada vez que el plugin se abre con ese
+contacto en este teléfono y distinto para cada plugin. No dice quién es el contacto y es solo de
+este teléfono: el otro tiene otro, así que no se envía, tampoco por `live`. Lo que el plugin guarde
+por conversación (una partida, una lista) va bajo ese id. Abierto fuera de una conversación (desde
+Ajustes), `chat` no está.
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
