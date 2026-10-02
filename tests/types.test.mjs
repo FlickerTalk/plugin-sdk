@@ -79,3 +79,23 @@ test("the README says how to translate a plugin's name and summary", () => {
   }
   assert.match(readme, /1\.3\.0/, "and from which app");
 });
+
+// 2026-10-02: the app tells the plugin its window is closing (the app's ✕, Android's Back, leaving
+// the chat), so a live session can say goodbye to its twin. Additive: an older app does not have
+// it, so it is optional and the plugin asks for it first.
+test("onClose lets a plugin say goodbye when its window closes, on an app that has it", () => {
+  const api = body("FlickerTalk");
+  assert.match(api, /\n  onClose\?\(handler: \(\) => void \| Promise<void>\): void;/, "an optional method taking a handler");
+  const doc = api.slice(api.lastIndexOf("/**", api.indexOf("onClose?(")), api.indexOf("onClose?("));
+  assert.match(doc, /tenths of a second/i, "it says how little time there is");
+  assert.match(doc, /saving|save/i, "it says to keep saving at once, as always");
+  assert.match(doc, /goodbye/i, "it says what it is for");
+  assert.match(doc, /if \(ft\.onClose\)/, "it says how to ask for it");
+  assert.match(doc, /1\.3\.0/, "and from which app");
+});
+
+test("the README tells how to say goodbye when the window closes", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  assert.ok(readme.includes("`ft.onClose(fn)`"), "it is in the table");
+  assert.match(readme, /if \(ft\.onClose\)/, "with the way to ask for it");
+});
