@@ -14,6 +14,23 @@ export interface PluginFile {
   data: string;
 }
 
+/** A plugin's name and summary in one language, as `module.json` gives them under `locales`. */
+export interface PluginLocale {
+  /** At most 64 characters; leave it out to keep the English name (a format, like PDF). */
+  name?: string;
+  /** At most 200 characters. */
+  summary?: string;
+}
+
+/**
+ * `locales` in `module.json` (2026-10-02): the name and the summary by the app's language code
+ * (`es`, `pt`, `fr`, `de`, `it`, `ro`, `ru`, `uk`, `pl`, `tr`, `ar`, `hi`, `bn`, `id`, `vi`, `th`,
+ * `ja`, `ko`, `zh-CN`, `zh-TW`). From app 1.3.0 the app shows the one of its language, then the
+ * one of its base language (`zh` for `zh-TW`), and otherwise the English top-level ones, which
+ * stay required. The catalogue copies them, so the app can show them before installing.
+ */
+export type PluginLocales = Record<string, PluginLocale>;
+
 /** What the plugin is opened with. */
 export interface PluginOpen {
   /** The text the user handed it, if it was granted `messages`; empty otherwise. */

@@ -148,6 +148,30 @@ class Hello extends HTMLElement {
 customElements.define("ft-hello", Hello);
 ```
 
+## El nombre y el resumen en otros idiomas
+
+`name` y `summary` van siempre en inglés y son obligatorios: es lo que se ve cuando no hay
+traducción y lo que enseñan las apps anteriores a la 1.3.0. Desde la **1.3.0**, `locales` los da en
+los demás idiomas de la app, por su código: `es`, `pt`, `fr`, `de`, `it`, `ro`, `ru`, `uk`, `pl`,
+`tr`, `ar`, `hi`, `bn`, `id`, `vi`, `th`, `ja`, `ko`, `zh-CN` y `zh-TW`.
+
+```json
+"locales": {
+  "es": { "name": "Ajedrez", "summary": "Ajedrez con la otra persona del chat." },
+  "zh-TW": { "name": "西洋棋", "summary": "和聊天中的對方下西洋棋。" }
+}
+```
+
+- La app busca su idioma exacto, luego el idioma base (`zh` para `zh-TW`) y, si no hay, el inglés.
+  Un código que la app no habla (`nl`, `pt-BR`) es válido, pero no se ve: el portugués va en `pt`.
+- No hay `en`: el inglés es el `name` y el `summary` de arriba.
+- Los mismos límites que en inglés: `name` hasta 64 caracteres y `summary` hasta 200, sin vacíos.
+  Cada idioma puede llevar solo uno de los dos; un nombre que no se traduce (un formato, como PDF)
+  se omite.
+- El nombre traducido debe ser el mismo título que el plugin enseña por dentro en ese idioma
+  (`onOpen` le da `lang`).
+- El catálogo copia `locales` a su índice, así que la app los enseña también antes de instalar.
+
 ## Reglas
 
 - Solo web: HTML, CSS, JavaScript y web components. Nada nativo.
