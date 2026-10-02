@@ -207,6 +207,21 @@ export interface PluginDrive {
   restore(): Promise<DriveBackup | false>;
 }
 
+/**
+ * Where the phone is, right now (2026-10-02): one fix, taken when the plugin asked for it, while
+ * the app is open. Nothing follows it: no background, no live sharing, no history.
+ */
+export interface PluginLocation {
+  /** Degrees, WGS 84. */
+  lat: number;
+  /** Degrees, WGS 84. */
+  lon: number;
+  /** How far off it may be, in metres. */
+  accuracy: number;
+  /** When the phone took the fix, in milliseconds since the epoch. */
+  at: number;
+}
+
 /** What a call the core made for the plugin brought back. `body` is base64. */
 export interface PluginAnswer {
   status: number;
@@ -282,6 +297,16 @@ export interface FlickerTalk {
    * message or the contact is no longer there. The plugin never learns who it was.
    */
   openChat(ref: string): Promise<boolean>;
+
+  /**
+   * The phone's current position, once (2026-10-02). Needs the `location` permission; the phone
+   * asks the user the first time. Only while the app is open: never in the background, never
+   * followed. Resolves `null` when the user or the phone refuses, location is off, or there is no
+   * fix within about 15 seconds. To share it, the plugin puts a `geo:` URI in the composer with
+   * `say` (RFC 5870, e.g. `geo:40.41680,-3.70380;u=35`) and the user sends it: the other side
+   * sees a card that opens the phone's own maps app, without any plugin.
+   */
+  location(): Promise<PluginLocation | null>;
 
   /** Closes the plugin's window. */
   close(): void;
