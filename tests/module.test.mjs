@@ -146,3 +146,49 @@ test("a plugin may ask for the phone's current position, and only as a yes or a 
     assert.equal(validate(wrong), false, JSON.stringify(wrong.permissions));
   }
 });
+
+// 2026-10-02 (plan of the catalogue's translations, option A): a plugin may give its name and its
+// summary in the app's other languages. The top-level ones stay required and in English: they are
+// the fallback, and what an app older than 1.3.0 shows. The same limits as `ft-plugins`.
+const LANGUAGES = ["es", "pt", "fr", "de", "it", "ro", "ru", "uk", "pl", "tr", "ar", "hi", "bn", "id", "vi", "th", "ja", "ko", "zh-CN", "zh-TW"];
+
+test("a plugin may give its name and summary in the app's languages", () => {
+  const translated = {
+    ...chess,
+    summary: "Chess with the other person in the chat.",
+    locales: { es: { name: "Ajedrez", summary: "Ajedrez con la otra persona del chat." }, "zh-TW": { name: "西洋棋" } },
+  };
+  assert.ok(validate(translated), JSON.stringify(validate.errors));
+  // Markdown and PDF keep their name: a language may carry the summary alone.
+  assert.ok(validate({ ...manifest, locales: { de: { summary: "Übersetzt eine Nachricht." } } }), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...manifest, locales: Object.fromEntries(LANGUAGES.map((code) => [code, { name: "x".repeat(64), summary: "y".repeat(200) }])) }), JSON.stringify(validate.errors));
+  // A language the app does not speak yet is fine: the app looks up only its own.
+  assert.ok(validate({ ...manifest, locales: { nl: { name: "Vertaler" }, "pt-BR": { name: "Tradutor" }, "zh-Hant": { name: "翻譯" } } }), JSON.stringify(validate.errors));
+  assert.ok(validate(manifest), "a manifest without locales is still valid");
+});
+
+test("a translated name or summary keeps the limits of the English one", () => {
+  for (const wrong of [
+    { es: { name: "" } },
+    { es: { name: "   " } },
+    { es: { name: "x".repeat(65) } },
+    { es: { summary: "" } },
+    { es: { summary: "y".repeat(201) } },
+    { es: { name: 7 } },
+    { es: { name: "Traductor", description: "no" } },
+    { es: "Traductor" },
+    // The English text is the top-level one; there is no second place for it.
+    { en: { name: "Translator" } },
+    // A language tag, as the app spells it: lowercase language, uppercase region.
+    { ES: { name: "Traductor" } },
+    { "zh-cn": { name: "翻译" } },
+    { zh_CN: { name: "翻译" } },
+    { spanish: { name: "Traductor" } },
+    { "": { name: "Traductor" } },
+  ]) {
+    assert.ok(!validate({ ...manifest, locales: wrong }), `${JSON.stringify(wrong)} should be refused`);
+  }
+  const tooMany = Object.fromEntries(Array.from({ length: 65 }, (_, index) => [`l${String.fromCharCode(97 + (index % 26))}${String.fromCharCode(97 + Math.floor(index / 26))}`, { name: "x" }]));
+  assert.equal(Object.keys(tooMany).length, 65);
+  assert.ok(!validate({ ...manifest, locales: tooMany }), "no more than 64 languages");
+});
