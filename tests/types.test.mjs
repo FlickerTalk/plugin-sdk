@@ -57,3 +57,25 @@ test("the README lists the colours a plugin may use, with a fallback", () => {
   assert.match(readme, /var\(--ion-text-color, /, "with a fallback");
   assert.match(readme, /1\.3\.0/, "and from which app");
 });
+
+// 2026-10-02: module.json may carry the name and the summary in other languages (`locales`); the
+// app shows them from 1.3.0 and falls back to the English ones.
+test("the manifest's translations are typed", () => {
+  const locale = body("PluginLocale");
+  assert.match(locale, /\n  name\?: string;/);
+  assert.match(locale, /\n  summary\?: string;/);
+  assert.match(types, /\nexport type PluginLocales = Record<string, PluginLocale>;/);
+  const at = types.indexOf("export type PluginLocales");
+  const doc = types.slice(types.lastIndexOf("/**", at), at);
+  assert.match(doc, /zh-CN/, "it names the codes");
+  assert.match(doc, /English/, "it says what is shown without one");
+});
+
+test("the README says how to translate a plugin's name and summary", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  assert.match(readme, /"locales"/, "with an example");
+  for (const code of ["es", "pt", "fr", "de", "it", "ro", "ru", "uk", "pl", "tr", "ar", "hi", "bn", "id", "vi", "th", "ja", "ko", "zh-CN", "zh-TW"]) {
+    assert.ok(readme.includes(`\`${code}\``), `${code} is listed`);
+  }
+  assert.match(readme, /1\.3\.0/, "and from which app");
+});
