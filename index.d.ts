@@ -18,8 +18,17 @@ export interface PluginFile {
 export interface PluginOpen {
   /** The text the user handed it, if it was granted `messages`; empty otherwise. */
   text: string;
-  /** Whether the app is showing dark, so the plugin can paint like the rest of it. */
+  /** True when the app is dark, false when it is light (from app 1.3.0; before, it was always
+   *  false). The frame's root carries `data-dark` and `color-scheme` to match. */
   dark: boolean;
+  /** The app's colours (from app 1.3.0), by name: `--ion-background-color`, `--ion-text-color`,
+   *  `--ion-color-medium`, `--ion-item-background`, `--ion-border-color`, `--ion-color-primary`,
+   *  `--ion-color-primary-contrast`, `--ion-color-success` and `--ion-color-danger`. They are
+   *  already on the frame's root as CSS variables, kept up to date when the app changes its look
+   *  while the plugin is open, so CSS only needs `var(--ion-text-color, #222)`. This copy is for a
+   *  plugin that paints on a canvas; it is what they were when the plugin opened. Absent on an
+   *  older app. */
+  theme?: Record<string, string>;
   /** The language of the app (`es`, `pt`, `zh-CN`…), so the plugin can speak it (2026-09-27). */
   lang: string;
   /** The file the user opened with this plugin ("open with", or a tap when the manifest says
