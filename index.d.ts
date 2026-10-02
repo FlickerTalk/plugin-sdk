@@ -34,6 +34,13 @@ export interface PluginOpen {
   /** Whether `live` may reach a twin on the other side right now: the permission was granted
    *  and the plugin is open inside a conversation. */
   live: boolean;
+  /** The conversation it was opened in (2026-10-02): an opaque id, 43 characters of
+   *  `[A-Za-z0-9_-]`, the same every time this plugin is opened with that contact on this phone,
+   *  and its own for this plugin. It says nothing of who the contact is, and it is this phone's
+   *  alone: the other side has another one, so never send it, not even over `live`. Key what you
+   *  keep per conversation (a match, a list) by it. Absent when the plugin was opened outside a
+   *  conversation (from Settings, say). */
+  chat?: string;
 }
 
 /** One record of the plugin's own, as `records.keys` lists it. */
