@@ -27,3 +27,33 @@ test("onOpen says which chat the plugin was opened in, when there is one", () =>
   assert.match(doc, /never send/i, "it says not to send it to the other side");
   assert.match(doc, /key/i, "it says to key what is kept per conversation by it");
 });
+
+// 2026-10-03: the app hands every plugin its colours as Ionic's variables on the frame's root, and
+// says truthfully whether it is dark. A plugin reads them with a fallback: an older app has none.
+const COLOURS = [
+  "--ion-background-color",
+  "--ion-text-color",
+  "--ion-color-medium",
+  "--ion-item-background",
+  "--ion-border-color",
+  "--ion-color-primary",
+  "--ion-color-primary-contrast",
+  "--ion-color-success",
+  "--ion-color-danger",
+];
+
+test("onOpen says whether the app is dark and hands its colours", () => {
+  const open = body("PluginOpen");
+  assert.match(open, /\n  theme\?: Record<string, string>;/, "an optional map of name to colour");
+  const doc = (field) => open.slice(open.lastIndexOf("/**", open.indexOf(`${field}:`)), open.indexOf(`${field}:`));
+  assert.match(doc("theme?"), /--ion-text-color/, "it names the variables");
+  assert.match(doc("theme?"), /canvas/i, "it says who needs them as values");
+  assert.match(doc("dark"), /true when the app is dark/i);
+});
+
+test("the README lists the colours a plugin may use, with a fallback", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  for (const name of COLOURS) assert.ok(readme.includes(`\`${name}\``), `${name} is listed`);
+  assert.match(readme, /var\(--ion-text-color, /, "with a fallback");
+  assert.match(readme, /1\.3\.0/, "and from which app");
+});
