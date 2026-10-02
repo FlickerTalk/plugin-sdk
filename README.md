@@ -59,6 +59,13 @@ mensaje), `reminder` (el aviso que lo abrió) y `live` (si el canal está dispon
 plugin con `drive` que `opens` ficheros se le entrega el nombre y el tipo del fichero, no sus
 bytes: lo guarda en la nube con `ft.drive.keep`, del tamaño que sea.
 
+Abierto en una conversación, `ft.onOpen` trae también `chat` (2026-10-02): un id opaco de esa
+conversación (43 caracteres de `[A-Za-z0-9_-]`), el mismo cada vez que el plugin se abre con ese
+contacto en este teléfono y distinto para cada plugin. No dice quién es el contacto y es solo de
+este teléfono: el otro tiene otro, así que no se envía, tampoco por `live`. Lo que el plugin guarde
+por conversación (una partida, una lista) va bajo ese id. Abierto fuera de una conversación (desde
+Ajustes), `chat` no está.
+
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
 
