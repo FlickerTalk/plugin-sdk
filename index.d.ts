@@ -304,6 +304,20 @@ export interface FlickerTalk {
   /** Puts a text in the composer; the user is the one who presses send. Needs `send: propose`. */
   say(text: string): void;
 
+  /**
+   * Hands the app a short notice to show the user, such as "Your turn" in a game. The app shows
+   * the text as a single toast at the top of the screen, floating over the content, replacing any
+   * previous notice: there is only ever one. It goes away after a few seconds, unless `sticky`;
+   * a sticky notice stays until a new notice replaces it or the plugin calls `notify("")` (an
+   * empty text clears the current notice). The app shortens a long text. Fire and forget.
+   *
+   * No permission: nothing leaves the phone and nothing goes to the chat; only the user sees it.
+   *
+   * Absent on apps before 1.4.1, so ask for it first:
+   * `if (typeof ft.notify === "function") { ... }`
+   */
+  notify?(text: string, options?: { sticky?: boolean }): void;
+
   /** Saves a file on the phone instead of sending it. The user picks where. */
   save(name: string, mime: string, data: string): Promise<boolean>;
 

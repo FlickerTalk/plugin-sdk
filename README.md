@@ -33,6 +33,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.takePhoto()` | abre la app de cámara del teléfono y devuelve la foto como `pickFile`, o `null` si el usuario vuelve atrás, no hay cámara o no está permitida (desde la app 1.4.1) | ninguno |
 | `ft.send(name, mime, data)` | entrega un fichero al chat; lo envía la app | `send` |
 | `ft.say(text)` | deja un texto en la caja de escribir | `send: propose` |
+| `ft.notify(text, options)` | un aviso corto que la app enseña como un único toast arriba de la pantalla, encima del contenido; sustituye al anterior y se va a los pocos segundos, salvo con `{ sticky: true }` (desde la app 1.4.1) | ninguno |
 | `ft.save(name, mime, data)` | guarda un fichero en el teléfono | ninguno |
 | `ft.print(name, mime, data)` | imprime; la impresora la elige el usuario | `print` |
 | `ft.fetch(url, options)` | una llamada que hace el núcleo, solo a los hosts concedidos | `network` |
@@ -102,6 +103,20 @@ Una app anterior no la tiene, así que se pregunta antes y, si no está, se ofre
 ```js
 if (typeof ft.takePhoto === "function") cameraButton.hidden = false;
 const photo = await ft.takePhoto(); // null si el usuario vuelve atrás
+```
+
+**Avisar al usuario** (desde la app 1.4.1, 2026-10-06): `ft.notify(text)` le pasa a la app un
+aviso corto («Te toca», «Esa jugada no vale») y la app lo enseña como un toast arriba de la
+pantalla, flotando encima del contenido. Solo hay uno a la vez: un aviso nuevo sustituye al
+anterior. Se va solo a los pocos segundos; con `{ sticky: true }` se queda hasta que llega otro o
+el plugin lo quita con `ft.notify("")`. La app recorta un texto largo. No pide permiso: no sale
+nada del teléfono ni va nada al chat. El plugin no se hace su propio toast; una app anterior no la
+tiene, así que se pregunta antes:
+
+```js
+if (typeof ft.notify === "function") ft.notify("Your turn");
+ft.notify("Waiting for the other player…", { sticky: true });
+ft.notify(""); // quita el aviso fijo
 ```
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,

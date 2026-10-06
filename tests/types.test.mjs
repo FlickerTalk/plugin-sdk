@@ -121,3 +121,32 @@ test("the README lists takePhoto and how to ask for it", () => {
   assert.match(readme, /typeof ft\.takePhoto === "function"/, "with the way to ask for it");
   assert.match(readme, /1\.4\.1/, "and from which app");
 });
+
+// 2026-10-06: a plugin or a game hands the app a short notice and the app shows it as a toast.
+// The app owns the toast (one at a time, at the top, over the content), so no plugin builds its
+// own. Additive: an app before 1.4.1 does not have it, so it is optional and asked for first.
+test("notify hands the app a notice to show as a single toast at the top", () => {
+  const api = body("FlickerTalk");
+  assert.match(
+    api,
+    /\n  notify\?\(text: string, options\?: \{ sticky\?: boolean \}\): void;/,
+    "an optional fire-and-forget method with an optional sticky flag",
+  );
+  assert.ok(api.indexOf("notify?(") > api.indexOf("say("), "it sits next to say");
+  const doc = api.slice(api.lastIndexOf("/**", api.indexOf("notify?(")), api.indexOf("notify?("));
+  assert.match(doc, /toast/i, "it says the app shows a toast");
+  assert.match(doc, /top/i, "at the top of the screen");
+  assert.match(doc, /replac/i, "replacing the previous notice");
+  assert.match(doc, /sticky/, "it says what sticky does");
+  assert.match(doc, /notify\(""\)/, "and how to clear a sticky notice");
+  assert.match(doc, /no permission/i, "it needs no permission");
+  assert.match(doc, /typeof ft\.notify === "function"/, "it says how to ask for it");
+  assert.match(doc, /1\.4\.1/, "and from which app");
+});
+
+test("the README lists notify and how to ask for it", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  assert.ok(readme.includes("`ft.notify(text, options)`"), "it is in the table");
+  assert.match(readme, /typeof ft\.notify === "function"/, "with the way to ask for it");
+  assert.match(readme, /notify\(""\)/, "and how to clear a sticky notice");
+});
