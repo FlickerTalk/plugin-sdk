@@ -30,6 +30,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | --- | --- | --- |
 | `ft.onOpen(fn)` | lo que el usuario le entrega, y si la app va en oscuro | `messages` para el texto |
 | `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
+| `ft.takePhoto()` | abre la app de cámara del teléfono y devuelve la foto como `pickFile`, o `null` si el usuario vuelve atrás, no hay cámara o no está permitida (desde la app 1.4.1) | ninguno |
 | `ft.send(name, mime, data)` | entrega un fichero al chat; lo envía la app | `send` |
 | `ft.say(text)` | deja un texto en la caja de escribir | `send: propose` |
 | `ft.save(name, mime, data)` | guarda un fichero en el teléfono | ninguno |
@@ -90,6 +91,17 @@ así que se pregunta antes:
 
 ```js
 if (ft.onClose) ft.onClose(() => session.stop()); // stop() manda el bye si hay sesión en directo
+```
+
+**Hacer una foto** (desde la app 1.4.1, 2026-10-06): `ft.takePhoto()` abre la app de cámara del
+teléfono para que el usuario haga la foto directamente, en vez de buscarla en la galería. Devuelve
+lo mismo que `pickFile` (`{name, mime, data}`), o `null` si el usuario vuelve atrás, el teléfono no
+tiene cámara o no la permite; nunca lanza un error. No pide permiso: la foto la hace el usuario.
+Una app anterior no la tiene, así que se pregunta antes y, si no está, se ofrece solo la galería:
+
+```js
+if (typeof ft.takePhoto === "function") cameraButton.hidden = false;
+const photo = await ft.takePhoto(); // null si el usuario vuelve atrás
 ```
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
