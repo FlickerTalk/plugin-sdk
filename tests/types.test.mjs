@@ -99,3 +99,25 @@ test("the README tells how to say goodbye when the window closes", () => {
   assert.ok(readme.includes("`ft.onClose(fn)`"), "it is in the table");
   assert.match(readme, /if \(ft\.onClose\)/, "with the way to ask for it");
 });
+
+// 2026-10-06: a plugin may ask the app to open the phone's camera app, so the user takes the photo
+// directly instead of looking for it in the gallery. Additive: an app before 1.4.1 does not have
+// it, so it is optional and the plugin asks for it first.
+test("takePhoto opens the phone's camera app, on an app that has it", () => {
+  const api = body("FlickerTalk");
+  assert.match(api, /\n  takePhoto\?\(\): Promise<PluginFile \| null>;/, "an optional method that resolves like pickFile");
+  assert.ok(api.indexOf("takePhoto?(") > api.indexOf("pickFile("), "it sits next to pickFile");
+  const doc = api.slice(api.lastIndexOf("/**", api.indexOf("takePhoto?(")), api.indexOf("takePhoto?("));
+  assert.match(doc, /camera app/i, "it says it is the phone's own camera app");
+  assert.match(doc, /`null`/, "it says what backing out gives");
+  assert.match(doc, /no camera/i, "it says a phone without a camera gives null too");
+  assert.match(doc, /typeof ft\.takePhoto === "function"/, "it says how to ask for it");
+  assert.match(doc, /1\.4\.1/, "and from which app");
+});
+
+test("the README lists takePhoto and how to ask for it", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  assert.ok(readme.includes("`ft.takePhoto()`"), "it is in the table");
+  assert.match(readme, /typeof ft\.takePhoto === "function"/, "with the way to ask for it");
+  assert.match(readme, /1\.4\.1/, "and from which app");
+});

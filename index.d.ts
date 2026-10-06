@@ -287,6 +287,17 @@ export interface FlickerTalk {
    */
   pickFile(accept?: string): Promise<PluginFile | null>;
 
+  /**
+   * Asks the app to open the phone's camera app, so the user takes the photo directly instead of
+   * looking for it in the gallery. Resolves with the photo, in the same shape as `pickFile`, or
+   * with `null` if the user backs out, the phone has no camera or the camera is not allowed. It
+   * never throws. No permission: the user takes the photo, so the user decides.
+   *
+   * Absent on apps before 1.4.1, so ask for it first:
+   * `if (typeof ft.takePhoto === "function") { ... }`
+   */
+  takePhoto?(): Promise<PluginFile | null>;
+
   /** Hands a file to the chat. The app is what sends it. Needs the `send` permission. */
   send(name: string, mime: string, data: string): void;
 
