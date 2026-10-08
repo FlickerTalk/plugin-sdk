@@ -29,7 +29,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 
 | Llamada | Qué hace | Permiso |
 | --- | --- | --- |
-| `ft.onOpen(fn)` | lo que el usuario le entrega, y si la app va en oscuro | `messages` para el texto |
+| `ft.onOpen(fn)` | lo que el usuario le entrega, si la app va en oscuro y, en una llamada, si presenta o sigue (desde la app 1.6.0) | `messages` para el texto |
 | `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
 | `ft.takePhoto()` | abre la app de cámara del teléfono y devuelve la foto como `pickFile`, o `null` si el usuario vuelve atrás, no hay cámara o no está permitida (desde la app 1.4.1) | ninguno |
 | `ft.send(name, mime, data)` | entrega un fichero al chat; lo envía la app | `send` |
@@ -118,6 +118,21 @@ tiene, así que se pregunta antes:
 if (typeof ft.notify === "function") ft.notify("Your turn");
 ft.notify("Waiting for the other player…", { sticky: true });
 ft.notify(""); // quita el aviso fijo
+```
+
+**Presentar en una llamada** (desde la app 1.6.0, 2026-10-08): en una llamada, la app puede abrir
+un plugin a pantalla completa en los dos teléfonos para enseñar algo (una pizarra, un PDF).
+`ft.onOpen` trae entonces `presenting`: `"lead"` en el teléfono que presenta y `"follow"` en el que
+mira. Los dos hablan por `ft.live` como siempre: el que presenta manda lo que cambia (un trazo, una
+página) y el que sigue lo enseña sin editar. Fuera de una presentación, y en una app anterior,
+`presenting` no está; un plugin que no lo conoce no tiene que hacer nada. No pide permisos nuevos:
+lo que viaja necesita `live` en los dos teléfonos.
+
+```js
+ft.onOpen(({ presenting }) => {
+  if (presenting === "lead") live.start(); // nobody has to switch it on
+  if (presenting === "follow") board.readOnly = true;
+});
 ```
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
