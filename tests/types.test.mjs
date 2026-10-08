@@ -150,3 +150,22 @@ test("the README lists notify and how to ask for it", () => {
   assert.match(readme, /typeof ft\.notify === "function"/, "with the way to ask for it");
   assert.match(readme, /notify\(""\)/, "and how to clear a sticky notice");
 });
+
+// 2026-10-08 (plan of the Apps grid, decision 2): `icon` in module.json names the Ionicon the app
+// shows for the plugin; without it the app shows a generic tool or game icon.
+test("the manifest's icon is typed", () => {
+  assert.match(types, /\nexport type PluginManifestIcon = string;/);
+  const at = types.indexOf("export type PluginManifestIcon");
+  const doc = types.slice(types.lastIndexOf("/**", at), at);
+  assert.match(doc, /Ionicon/, "it says it is an Ionicon's name");
+  assert.match(doc, /image-outline/, "with an example");
+  assert.match(doc, /\^\[a-z0-9-\]\+\$/, "it gives the pattern");
+  assert.match(doc, /generic/i, "it says what is shown without one");
+});
+
+test("the README says how to choose the plugin's icon", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  assert.match(readme, /"icon": "[a-z0-9-]+"/, "with an example");
+  assert.ok(readme.includes("`extension-puzzle-outline`"), "the tool's fallback");
+  assert.ok(readme.includes("`game-controller-outline`"), "the game's fallback");
+});

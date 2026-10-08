@@ -175,6 +175,21 @@ class Hello extends HTMLElement {
 customElements.define("ft-hello", Hello);
 ```
 
+## The plugin's icon
+
+`icon` (optional, 2026-10-08) is the name of an [Ionicon](https://ionic.io/ionicons) that the app
+shows for the plugin in its Apps grid and sheets. Use the outline style, like the rest of the app:
+
+```json
+"icon": "image-outline"
+```
+
+- Only the name: lowercase letters, digits and `-` (`^[a-z0-9-]+$`), at most 64 characters. Never a
+  path or a file; the app draws its own copy of the icon.
+- Without `icon` the app shows a generic icon: `extension-puzzle-outline` for a tool and
+  `game-controller-outline` for a game.
+- An app that does not know the field yet ignores it, so adding it never breaks a plugin.
+
 ## El nombre y el resumen en otros idiomas
 
 `name` y `summary` van siempre en inglés y son obligatorios: es lo que se ve cuando no hay
