@@ -6,11 +6,12 @@ runtime y sin emulador. Licencia **MIT**, para que un plugin pueda tener la lice
 
 ## Qué es un plugin
 
-Una carpeta con dos cosas:
+Una carpeta con dos cosas, y una tercera opcional:
 
 ```
 module.json      # qué es y qué pide
 dist/index.js    # el código; registra un web component
+icon.svg         # optional: its image in the Apps grid (see "The plugin's icon")
 ```
 
 El paquete `.ftplugin` es esa carpeta firmada por el catálogo (BLAKE3 por fichero + Ed25519). La
@@ -177,8 +178,44 @@ customElements.define("ft-hello", Hello);
 
 ## The plugin's icon
 
+A plugin shows up in the app's Apps grid and sheets with an image of its own, `icon.svg`, or,
+without one, with the Ionicon named in its manifest.
+
+### `icon.svg`
+
+A package may carry `icon.svg` at its root, next to `module.json` and `dist/`, signed with the
+rest:
+
+```
+module.json
+dist/index.js
+icon.svg
+```
+
+The app draws it in the tile at 64 px, clipped to a rounded square of radius 18, and in the
+plugin's sheets. The clipping is the app's, so the file is a plain square, edge to edge, with no
+rounded corners of its own. It is drawn as an image, where a browser runs nothing, and the app
+still checks it when it opens the package:
+
+- At most 4096 bytes, well-formed XML, one `<svg>` root with a square `viewBox`: `0 0 64 64`.
+- Only these elements: `svg`, `g`, `title`, `desc`, `defs`, `path`, `rect`, `circle`, `ellipse`,
+  `line`, `polyline`, `polygon`, `linearGradient`, `radialGradient`, `stop`, `clipPath` and
+  `mask`. No `script`, `style`, `image`, `use`, `a`, `foreignObject`, `animate*` or `filter`.
+- No `on*` attribute, no `href` or `xlink:href`, no `style` attribute. Gradients are referenced
+  with `fill="url(#id)"`.
+- No CDATA, DOCTYPE, comments, XML declaration or processing instructions, and no entities other
+  than the five of XML (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`).
+
+**A bad icon rejects the whole package**: the app does not install it, it does not just drop the
+image. The catalogue packs `icon.svg` with the rest and copies it to its index, so the app shows
+it before the plugin is installed.
+
+### The Ionicon in the manifest
+
 `icon` (optional, 2026-10-08) is the name of an [Ionicon](https://ionic.io/ionicons) that the app
-shows for the plugin in its Apps grid and sheets. Use the outline style, like the rest of the app:
+shows for the plugin when the package has no `icon.svg`, and an app that does not draw images yet
+always shows. It is the fallback, so it is worth giving even with an image. Use the outline style,
+like the rest of the app:
 
 ```json
 "icon": "image-outline"
@@ -189,6 +226,41 @@ shows for the plugin in its Apps grid and sheets. Use the outline style, like th
 - Without `icon` the app shows a generic icon: `extension-puzzle-outline` for a tool and
   `game-controller-outline` for a game.
 - An app that does not know the field yet ignores it, so adding it never breaks a plugin.
+
+### How to make one
+
+Any editor will do, as long as the result keeps to the rules above. The app's own plugins use a
+background colour and a filled Ionicon in white, centred, and `tools/make-icon.mjs` in this
+repository makes one like that and checks any icon against the rules. From a checkout, after
+`npm install` (it brings [Ionicons](https://ionic.io/ionicons), MIT, as a devDependency; the tool
+itself has no dependencies):
+
+```sh
+npm run icon -- image '#DB2777' icon.svg     # the filled "image" Ionicon on pink
+npm run icon -- --check icon.svg           # the rules the app applies; exits 1 on a bad icon
+```
+
+The first argument is the Ionicon's name without a style suffix (`image`, not `image-outline`),
+the second the background as a hex colour, quoted so that the shell does not read `#` as the start
+of a comment. `--ionicons <dir>` takes the Ionicons from another folder of `<name>.svg` files
+instead of `node_modules/ionicons/dist/svg`.
+
+The colours of the app's own icons are a suggestion, not a rule:
+
+| Name | Hex |
+| --- | --- |
+| red | `#DC2626` |
+| orange | `#EA580C` |
+| amber | `#D97706` |
+| green | `#16A34A` |
+| teal | `#0D9488` |
+| sky | `#0284C7` |
+| blue | `#2563EB` |
+| indigo | `#4F46E5` |
+| violet | `#7C3AED` |
+| fuchsia | `#C026D3` |
+| pink | `#DB2777` |
+| slate | `#475569` |
 
 ## El nombre y el resumen en otros idiomas
 

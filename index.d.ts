@@ -36,7 +36,8 @@ export type PluginLocales = Record<string, PluginLocale>;
  * `timer-outline`), that the app shows for this plugin in its Apps grid and sheets. A name only,
  * matching `^[a-z0-9-]+$` and at most 64 characters, never a path or a file: the app draws its
  * own copy. Optional: without it the app shows a generic tool icon (`extension-puzzle-outline`)
- * or game icon (`game-controller-outline`).
+ * or game icon (`game-controller-outline`). A package may also carry its own image, `icon.svg` at
+ * its root (see the README); this name is then the fallback, shown when there is no image.
  */
 export type PluginManifestIcon = string;
 

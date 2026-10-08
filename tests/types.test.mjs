@@ -169,3 +169,67 @@ test("the README says how to choose the plugin's icon", () => {
   assert.ok(readme.includes("`extension-puzzle-outline`"), "the tool's fallback");
   assert.ok(readme.includes("`game-controller-outline`"), "the game's fallback");
 });
+
+// 2026-10-08 (plan of the Apps grid, "a plugin's image"): a package may carry its own `icon.svg`;
+// the manifest's `icon` stays as the fallback. The README gives the rules the app applies when it
+// opens the package and the tool that makes and checks one.
+const section = (readme, heading) => {
+  const start = readme.indexOf(`\n## ${heading}\n`);
+  assert.ok(start >= 0, `the README has a "${heading}" section`);
+  const end = readme.indexOf("\n## ", start + 1);
+  return readme.slice(start, end === -1 ? readme.length : end);
+};
+
+test("the manifest's icon type points at icon.svg", () => {
+  const at = types.indexOf("export type PluginManifestIcon");
+  const doc = types.slice(types.lastIndexOf("/**", at), at);
+  assert.match(doc, /`icon\.svg`/, "it names the image");
+  assert.match(doc, /fallback/i, "it says the name is the fallback");
+});
+
+test("the README's package layout lists icon.svg next to module.json and dist", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const layout = readme.slice(readme.indexOf("```\nmodule.json"), readme.indexOf("```", readme.indexOf("```\nmodule.json") + 3));
+  assert.match(layout, /module\.json/);
+  assert.match(layout, /dist\/index\.js/);
+  assert.match(layout, /icon\.svg/);
+});
+
+test("the README gives the rules of icon.svg", () => {
+  const icon = section(readFileSync(join(root, "README.md"), "utf8"), "The plugin's icon");
+  assert.match(icon, /`icon\.svg`/);
+  assert.match(icon, /signed/i, "it is signed with the rest");
+  assert.match(icon, /64 px/, "the tile size");
+  assert.match(icon, /radius (of )?18/i, "the rounded square");
+  assert.match(icon, /4096 bytes/);
+  assert.ok(icon.includes("`0 0 64 64`"), "the viewBox");
+  for (const element of ["svg", "g", "title", "desc", "defs", "path", "rect", "circle", "ellipse", "line", "polyline",
+    "polygon", "linearGradient", "radialGradient", "stop", "clipPath", "mask"]) {
+    assert.ok(icon.includes(`\`${element}\``), `${element} is in the whitelist`);
+  }
+  for (const word of ["`on*`", "`href`", "`xlink:href`", "`style`", "CDATA", "DOCTYPE", "entit", "url(#"]) {
+    assert.ok(icon.includes(word), `it mentions ${word}`);
+  }
+  assert.match(icon, /whole package/i, "a bad icon rejects the package");
+  assert.match(icon, /fallback/i, "the Ionicon name stays as the fallback");
+});
+
+test("the README says how to make and check an icon with the tool", () => {
+  const icon = section(readFileSync(join(root, "README.md"), "utf8"), "The plugin's icon");
+  assert.ok(icon.includes("npm run icon -- image '#DB2777' icon.svg"));
+  assert.ok(icon.includes("npm run icon -- --check icon.svg"));
+  assert.ok(icon.includes("--ionicons"));
+  assert.ok(icon.includes("tools/make-icon.mjs"));
+});
+
+test("the README suggests the twelve colours of the app's own icons", () => {
+  const icon = section(readFileSync(join(root, "README.md"), "utf8"), "The plugin's icon");
+  const palette = {
+    red: "#DC2626", orange: "#EA580C", amber: "#D97706", green: "#16A34A", teal: "#0D9488", sky: "#0284C7",
+    blue: "#2563EB", indigo: "#4F46E5", violet: "#7C3AED", fuchsia: "#C026D3", pink: "#DB2777", slate: "#475569",
+  };
+  for (const [name, hex] of Object.entries(palette)) {
+    assert.match(icon, new RegExp(`${name}\\b[^\\n]*${hex}`, "i"), `${name} ${hex}`);
+  }
+  assert.match(icon, /suggest/i, "a suggestion, not a rule");
+});
