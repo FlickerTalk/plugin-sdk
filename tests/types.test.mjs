@@ -233,3 +233,25 @@ test("the README suggests the twelve colours of the app's own icons", () => {
   }
   assert.match(icon, /suggest/i, "a suggestion, not a rule");
 });
+
+// 2026-10-08: the app opens a plugin inside a call to present it (a board, a PDF): the presenter
+// leads, the other side follows. Additive: absent outside a presentation and on an older app.
+test("onOpen says whether the plugin leads or follows a presentation in a call", () => {
+  const open = body("PluginOpen");
+  assert.match(open, /\n  presenting\?: "lead" \| "follow";/, "an optional lead or follow");
+  const doc = open.slice(open.lastIndexOf("/**", open.indexOf("presenting?:")), open.indexOf("presenting?:"));
+  assert.match(doc, /call/i, "it says it is inside a call");
+  assert.match(doc, /"lead"/, "it says who leads");
+  assert.match(doc, /"follow"/, "it says who follows");
+  assert.match(doc, /`live`/, "it says the two ends talk over live");
+  assert.match(doc, /absent/i, "it says when it is not there");
+  assert.match(doc, /1\.6\.0/, "and from which app");
+});
+
+test("the README tells how a plugin presents in a call", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  assert.match(readme, /`presenting`/, "it names the field");
+  assert.match(readme, /"lead"/);
+  assert.match(readme, /"follow"/);
+  assert.match(readme, /1\.6\.0/, "and from which app");
+});
