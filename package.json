@@ -14,9 +14,11 @@
     "url": "git+https://github.com/FlickerTalk/plugin-sdk.git"
   },
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "icon": "node tools/make-icon.mjs"
   },
   "devDependencies": {
-    "ajv": "^8.17.1"
+    "ajv": "^8.17.1",
+    "ionicons": "^8.1.0"
   }
 }

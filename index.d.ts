@@ -31,6 +31,16 @@ export interface PluginLocale {
  */
 export type PluginLocales = Record<string, PluginLocale>;
 
+/**
+ * `icon` in `module.json` (2026-10-08): the name of an Ionicon, outline style (`image-outline`,
+ * `timer-outline`), that the app shows for this plugin in its Apps grid and sheets. A name only,
+ * matching `^[a-z0-9-]+$` and at most 64 characters, never a path or a file: the app draws its
+ * own copy. Optional: without it the app shows a generic tool icon (`extension-puzzle-outline`)
+ * or game icon (`game-controller-outline`). A package may also carry its own image, `icon.svg` at
+ * its root (see the README); this name is then the fallback, shown when there is no image.
+ */
+export type PluginManifestIcon = string;
+
 /** What the plugin is opened with. */
 export interface PluginOpen {
   /** The text the user handed it, if it was granted `messages`; empty otherwise. */

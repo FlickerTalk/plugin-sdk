@@ -192,3 +192,15 @@ test("a translated name or summary keeps the limits of the English one", () => {
   assert.equal(Object.keys(tooMany).length, 65);
   assert.ok(!validate({ ...manifest, locales: tooMany }), "no more than 64 languages");
 });
+
+// 2026-10-08 (plan of the Apps grid, decision 2): a plugin may name the Ionicon the app shows for
+// it in its Apps grid and sheets. Only a name, never a path or a file: the app draws its own copy.
+test("a plugin may name the Ionicon the app shows for it", () => {
+  assert.ok(validate({ ...manifest, icon: "image-outline" }), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...chess, icon: "shield-outline" }), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...manifest, icon: "x".repeat(64) }), JSON.stringify(validate.errors));
+  assert.ok(validate(manifest), "a manifest without icon is still valid");
+  for (const wrong of ["Icon-Outline", "image outline", "x".repeat(65), "../x", "icon/image-outline.svg", "", 7]) {
+    assert.ok(!validate({ ...manifest, icon: wrong }), `icon ${JSON.stringify(wrong)} should be refused`);
+  }
+});
