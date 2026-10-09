@@ -144,6 +144,98 @@ Hay unos veinte: `pencil`, `eye`, `folder-open`, `download`, `send`, `image`, `r
 `arrow-undo`, `resize`, `options`, `add`, `document-text`, `arrow-up`, `trash`, `square`, `grid`,
 `brush` y `close`, todos en su versión `-outline`. Si falta alguno, se añade al núcleo.
 
+## Ionic, lent by the app
+
+From app **1.6.0** the app lends its own [Ionic](https://ionicframework.com) (MIT) to every plugin
+and game frame, so a plugin is drawn with the same components as the app and carries none of them.
+A plugin that relies on it sets `"minCoreVersion": "1.6.0"` in `module.json`.
+
+What the frame has before your module runs:
+
+- **`@ionic/core` 9.0.4**, every component defined as a custom element (`ion-button`, `ion-list`,
+  `ion-input`, `ion-segment`, `ion-datetime`, `ion-alert`…; the full list is `ftIonic.components`).
+- **Ionic's global CSS** (`ionic.bundle.css` without the body rules of `structure.css`): the
+  `ion-color-*` classes, typography and the utility classes (`ion-padding`, `ion-text-center`…).
+- **The theme**, derived from the app's colours (below), kept up to date while the plugin is open.
+- **`globalThis.ftIonic`**: the controllers (`alertController`, `toastController`,
+  `actionSheetController`, `modalController`, `popoverController`, `loadingController`),
+  `addIcons`, `getMode`, `isPlatform`, `createAnimation`, `createGesture`, and `version`
+  (`index.d.ts`, `FtIonic`).
+
+Which Ionic it is: `onOpen`'s `ionic.version`, `ftIonic.version`, and `data-ionic` on the frame's
+`<html>`. **Target the major version** (9): the app keeps that major's API for the plugins it lends
+it to, and a new major will be a new contract.
+
+**A package must not bundle Ionic.** It would add 250–550 KB to a plugin (more than the limits of
+most packages, and far more than a seed may weigh), and a second copy would try to define the same
+elements again. Keep `@ionic/core` (same version as the app) as a `devDependency` for your types
+and tests, and mark it external in your build; at run time use the elements and `ftIonic`.
+
+**Mode and direction.** Ionic picks `ios` or `md` from the phone, exactly as the app's own Ionic
+does, so a plugin looks like the app on each platform: read it with `ftIonic.getMode()` or
+`<html mode>`, never force one. The frame's `<html>` carries the app's `lang` and `dir` (`rtl` in
+Arabic), followed live; overlays go to the body, so set nothing of your own on `<html>`.
+
+**Theme.** The nine colours of `onOpen`'s `theme` are on the root, and the frame derives what Ionic
+reads besides: `--ion-background-color-rgb`, `--ion-text-color-rgb`, the steps
+(`--ion-background-color-step-50` … `-950`, `--ion-text-color-step-*`, the older
+`--ion-color-step-*`), shade, tint, contrast and `-rgb` of primary, success, danger and medium,
+`--ion-color-light` (the surface of a card) and `--ion-color-dark` (the text) with their
+contrasts, toolbar and card colours, and in the dark the overlays lifted onto the surface with a
+darker backdrop. `<html data-dark>` says the app is dark. Customise only through Ionic's variables.
+
+**Layout.** In a tool's window (in a chat, or on its own page) the frame is as tall as the window,
+and its `<html>` carries `data-fill`: `html` and `body` take the frame's height. Your element is a
+direct child of `<body>`; give it `display: flex; flex-direction: column; height: 100%` and put
+`ion-header` (with `ion-toolbar`), `ion-content` (`flex: 1`, the only thing that scrolls) and,
+if you need it, `ion-footer` inside. No `ion-app` is needed: the frame starts Ionic's press feedback
+and focus ring itself. The app's window already has a bar with the way out and the name, so a tool
+does not need its own ✕. In the **game room** (a game played inside a conversation) the frame
+follows its content instead and has no `data-fill`: do not use `height: 100%` there.
+
+**Draw in the light DOM** of your element. Ionic's global CSS (the `ion-color-*` classes among it)
+does not cross a shadow root of yours.
+
+**Overlays**: `ion-alert`, `ion-toast`, `ion-action-sheet`, `ion-modal` (also as a sheet),
+`ion-popover`, `ion-loading` and `ion-select` with any interface. They are placed in the frame,
+which in a tool's window is the whole window, so they land on the screen. Present them as elements
+or with the controllers:
+
+```js
+const alert = document.createElement("ion-alert");
+alert.header = "Delete the list?";
+alert.buttons = [{ text: "Cancel", role: "cancel" }, { text: "Delete", role: "destructive" }];
+document.body.appendChild(alert);
+await alert.present();
+const { role } = await alert.onDidDismiss();
+```
+
+In the game room the frame is as tall as the game, so an overlay is only on the screen if the game
+is; for a short notice prefer `ft.notify`.
+
+**Icons.** The icons the core lends at `./icon/` and the ones of the Apps grid are registered by
+name (`ftIonic.icons`), so `<ion-icon name="trash-outline"></ion-icon>` draws them. Any other
+Ionicon goes by its SVG: import it from `ionicons/icons` (a few hundred bytes each) and set
+`icon.icon = trashOutline`, or register it with `ftIonic.addIcons({ "trash-outline": trashOutline })`.
+An unregistered name would be fetched, which the frame's policy blocks: nothing is drawn.
+
+**Gotchas of the frame** (all of them before Ionic too):
+
+- **A `<form>` never submits on Android.** The frame is sandboxed without `allow-forms`, so
+  Chromium (Android's WebView) drops the submission before your `submit` handler runs; WebKit
+  submits, so it looks fine on an iPhone. Use no `<form>`: listen to the button's `click` and to
+  Enter (`keydown`) on the `ion-input`.
+- **`window.confirm()` returns false at once**, `prompt()` null and `alert()` shows nothing: the
+  sandbox has no modal dialogs. Use `ion-alert`.
+- No storage of the browser's own (`localStorage` throws) and no network: use `ft.store`,
+  `ft.records` and `ft.fetch`.
+- `hidden` does not hide an `ion-item` (its own `display` wins): set `style.display`.
+- On iOS `ion-title` is centred over the whole bar: with many buttons at the end it sits under them.
+
+**Tests.** Vitest with happy-dom runs Ionic for real: install `@ionic/core` as a `devDependency`
+and call each component's `defineCustomElement()` (from `@ionic/core/components/ion-*.js`) in the
+test setup, then the components render, and `present()`/`dismiss()` of an overlay work.
+
 ## Un plugin mínimo
 
 `module.json`:
