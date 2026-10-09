@@ -233,3 +233,44 @@ test("the README suggests the twelve colours of the app's own icons", () => {
   }
   assert.match(icon, /suggest/i, "a suggestion, not a rule");
 });
+
+// 2026-10-09 (Ioan): the app lends its own Ionic to every frame, from app 1.6.0. A plugin is told
+// which (`onOpen`'s `ionic`, and `data-ionic` on the frame's root) and finds the controllers on
+// `ftIonic`; it targets the major version and never bundles Ionic itself.
+test("onOpen says which Ionic the app lends the frame", () => {
+  const open = body("PluginOpen");
+  assert.match(open, /\n  ionic\?: PluginIonic;/, "an optional description of the lent Ionic");
+  const doc = open.slice(open.lastIndexOf("/**", open.indexOf("ionic?:")), open.indexOf("ionic?:"));
+  assert.match(doc, /1\.6\.0/, "from which app");
+  assert.match(doc, /data-ionic/, "where the page says it too");
+  const ionic = body("PluginIonic");
+  assert.match(ionic, /\n  version: string;/);
+  assert.match(ionic.slice(0, ionic.indexOf("version:")), /major/i, "it says a plugin targets the major");
+});
+
+test("the lent Ionic's controllers and helpers are typed on a global of their own", () => {
+  const lent = body("FtIonic");
+  for (const member of ["version", "ionicons", "components", "icons", "alertController", "toastController", "actionSheetController", "modalController", "popoverController", "loadingController", "addIcons", "getMode"]) {
+    assert.match(lent, new RegExp(`\\n  (readonly )?${member}[?]?:`), `${member} is declared`);
+  }
+  assert.match(types, /\n  var ftIonic: FtIonic \| undefined;/, "absent on an older app");
+});
+
+test("the README says how to use the Ionic the app lends, in English", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const start = readme.indexOf("## Ionic, lent by the app");
+  assert.ok(start >= 0, "the section is there");
+  const section = readme.slice(start, readme.indexOf("\n## ", start + 1));
+  for (const needed of [
+    "9.0.4", "major", "data-ionic", "ftIonic", "minCoreVersion", "1.6.0",
+    "ion-alert", "ion-toast", "ion-action-sheet", "ion-modal",
+    "mode", "dir", "--ion-text-color-rgb", "data-fill",
+    "<ion-icon name=", "light DOM",
+  ]) {
+    assert.ok(section.includes(needed), `it says ${needed}`);
+  }
+  assert.match(section, /must not bundle/i, "packages must not carry Ionic");
+  assert.match(section, /<form>/, "the form gotcha");
+  assert.match(section, /Android/, "where the form gotcha bites");
+  assert.match(section, /confirm\(\)/, "window.confirm answers false in the sandbox");
+});

@@ -77,6 +77,60 @@ export interface PluginOpen {
    *  keep per conversation (a match, a list) by it. Absent when the plugin was opened outside a
    *  conversation (from Settings, say). */
   chat?: string;
+  /** Which Ionic the app lends this frame (from app 1.6.0): its `@ionic/core` version, also on the
+   *  frame's root as `data-ionic`. Absent on an older app, which lends none. See `PluginIonic`. */
+  ionic?: PluginIonic;
+}
+
+/**
+ * The Ionic the app lends every frame (2026-10-09, from app 1.6.0): the app's own `@ionic/core`,
+ * every component registered before the plugin's module runs, its global CSS, a theme derived
+ * from the app's colours, and the controllers on `ftIonic`. A plugin targets the major version
+ * (`9` for `9.0.4`): the app keeps that major's API for the plugins it lends it to; a new major is
+ * a new contract. A package must not bundle Ionic itself.
+ */
+export interface PluginIonic {
+  /** `@ionic/core`'s version, as `9.0.4`. Target its major (`9`), not the exact version. */
+  version: string;
+}
+
+/** An Ionic overlay controller, as `@ionic/core` exports it; typed loosely here, see Ionic's docs. */
+export interface FtIonicController {
+  create(options?: Record<string, unknown>): Promise<HTMLElement & { present(): Promise<void>; dismiss(data?: unknown, role?: string): Promise<boolean>; onDidDismiss(): Promise<{ data?: unknown; role?: string }> }>;
+  dismiss(data?: unknown, role?: string, id?: string): Promise<boolean>;
+  getTop(): Promise<HTMLElement | undefined>;
+}
+
+/**
+ * `globalThis.ftIonic` (from app 1.6.0): what of Ionic is not an element. Every component is
+ * already defined, so `<ion-button>` or `document.createElement("ion-alert")` just work; this is
+ * for the controllers, the icons and the platform helpers. Frozen. Absent on an older app.
+ */
+export interface FtIonic {
+  /** `@ionic/core`'s version, as on `PluginOpen.ionic`. */
+  readonly version: string;
+  /** `ionicons`' version. */
+  readonly ionicons: string;
+  /** Every component defined in the frame, as tag names (`ion-button`…). */
+  readonly components: readonly string[];
+  /** The Ionicons registered by name, so `<ion-icon name="…">` draws them with no fetch. Any other
+   *  icon goes by its SVG: `icon.icon = trashOutline` (from `ionicons/icons`), or `addIcons`. */
+  readonly icons: readonly string[];
+  readonly actionSheetController: FtIonicController;
+  readonly alertController: FtIonicController;
+  readonly loadingController: FtIonicController;
+  readonly modalController: FtIonicController;
+  readonly popoverController: FtIonicController;
+  readonly toastController: FtIonicController;
+  readonly menuController: Record<string, (...args: unknown[]) => unknown>;
+  /** Registers icons by name: `{ "trash-outline": trashOutline }`, each an SVG `data:` URL. */
+  readonly addIcons: (icons: Record<string, string>) => void;
+  readonly createAnimation: (...args: unknown[]) => unknown;
+  readonly createGesture: (...args: unknown[]) => unknown;
+  /** `ios` or `md`: the app's, which Ionic picks from the phone. */
+  readonly getMode: () => "ios" | "md";
+  readonly isPlatform: (platform: string) => boolean;
+  readonly getPlatforms: () => string[];
 }
 
 /** One record of the plugin's own, as `records.keys` lists it. */
@@ -387,6 +441,8 @@ export interface FlickerTalk {
 declare global {
   // eslint-disable-next-line no-var
   var ft: FlickerTalk;
+  // eslint-disable-next-line no-var
+  var ftIonic: FtIonic | undefined;
 }
 
 export {};
