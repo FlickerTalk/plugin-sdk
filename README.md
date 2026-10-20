@@ -44,6 +44,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.live.send/onMessage` | hablar con el mismo plugin al otro lado de la conversación, por la conexión directa, cifrado; nunca por el servidor (2026-09-27) | `live` en los dos teléfonos |
 | `ft.drive.status/connect/list/mkdir/rename/move/remove/upload/keep/open/save/send/retry/cancel/backup/restore/disconnect` | la nube del propio usuario (Google Drive): el núcleo hace el login, sella en el teléfono y sube; el plugin ve nombres y tamaños, nunca bytes, tokens ni la frase de recuperación (2026-09-27). Crear el drive y abrir uno de otro teléfono se hace solo en Ajustes → Copia de seguridad de la app (2026-09-28) | `drive` |
 | `ft.location()` | dónde está el teléfono ahora, una sola vez y solo con la app abierta: `{lat, lon, accuracy, at}` (metros y milisegundos), o `null` si el usuario o el teléfono se niegan, la ubicación está apagada o no hay posición en ~15 s. El teléfono pregunta la primera vez. Para compartirla, el plugin deja un URI `geo:` en la caja de escribir con `say` (RFC 5870, `geo:40.41680,-3.70380;u=35`) y la envía el usuario; el otro lado ve una tarjeta que abre su propia app de mapas, sin plugin y sin cargar ningún mapa (2026-10-02) | `location` |
+| `ft.translate.languages/detect/status/prepare/remove/translate` | translation on the phone: the languages this phone has, a guess of a text's language, whether a pair of languages is ready, its download, its removal (Android) and the translation; the text never leaves the phone (from app 1.7.0, 2026-10-20; see "On-device translation") | `translate` |
 | `ft.openChat(ref)` | vuelve a la conversación de la que salió el mensaje (`ref` de `onOpen`), sin saber con quién es (2026-09-27) | ninguno |
 | `ft.close()` | cierra su ventana | ninguno |
 | `ft.onClose(fn)` | avisa de que la ventana se va a cerrar, para despedirse del otro lado (desde la app 1.3.0) | ninguno |
@@ -122,6 +123,60 @@ ft.notify(""); // quita el aviso fijo
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
+
+## On-device translation
+
+From app **1.7.0** (2026-10-20) a plugin may translate text on the phone with `ft.translate`
+(`PluginTranslator` in `index.d.ts`). It asks for it in `module.json`, and the app asks the user
+the first time a call needs it:
+
+```json
+"minCoreVersion": "1.7.0",
+"permissions": { "translate": true }
+```
+
+**Privacy.** The text never leaves the phone. On iPhone the translation is done by iOS. It needs
+iOS 18 or newer. On Android the translator is Google's ML Kit, built into the app: the text stays
+on the phone. Google receives which languages are used and diagnostic data about the app, not the
+text. Language packs are downloaded once from Apple or Google, which therefore see which language
+was asked for and from which IP address; never the text.
+
+**The flow.** The state is per pair of languages, because that is how iOS gives it, so a plugin
+goes through it in order, with no error codes to decode:
+
+1. `languages()`: the BCP-47 tags this phone can translate between (`es`, `pt`, `zh-Hans`). Each
+   phone gives what it has, so an Android phone and an iPhone may list different ones. Empty means
+   this phone cannot translate (a desktop, an iPhone before iOS 18): say so in one sentence.
+   `onOpen`'s `lang` is the app's language (`zh-CN`), which may not be a tag of the list as such:
+   match it on its first subtag.
+2. `detect(text)`: the language of the text, guessed on the phone, or `null` when it cannot tell.
+   Let the user correct it.
+3. `status(from, to)`: `"installed"` (ready), `"downloadable"` (it needs a language pack first) or
+   `"unsupported"` (not on this phone, or a tag the phone does not know).
+4. `prepare(from, to)`, when the pair is `"downloadable"`: tell the user first that a pack is about
+   to be downloaded and roughly how big it is (about 30 MB a language on Android), with an
+   `ion-alert`. On iPhone, iOS shows its own sheet as well. Resolves `true` when the pair is ready.
+5. `translate(text, from, to)`: the translation, or `null` when it could not be done.
+
+`remove(from, to)` deletes the pair's downloaded packs on Android, where they live in the app's
+own storage and would otherwise only go when the app's data is cleared; on iPhone they are managed
+in the phone's Settings, and it resolves `false`.
+
+**Limits.** A text has 1 to 5 000 characters, about one message; an empty or longer one gives
+`null`. The core waits about 30 seconds for `detect` and `translate`, and about 5 minutes for
+`prepare`. Every call resolves and never throws: refused by the user, on a phone that cannot, or
+when something fails, `languages()` gives `[]`, `detect` and `translate` give `null`, `status`
+gives `"unsupported"`, and `prepare` and `remove` give `false`.
+
+```js
+// `text` is what to translate, `to` the language the user picked (by default the app's own).
+const from = (await ft.translate.detect(text)) ?? "en";
+let state = await ft.translate.status(from, to);
+if (state === "downloadable" && (await userAcceptsTheDownload(to))) {
+  if (await ft.translate.prepare(from, to)) state = "installed";
+}
+if (state === "installed") result.textContent = (await ft.translate.translate(text, from, to)) ?? "";
+```
 
 ## Los iconos los presta el núcleo
 

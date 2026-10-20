@@ -313,3 +313,31 @@ test("ft.translate needs the translate permission, from app 1.7.0", () => {
   assert.match(translator, /5 ?000/, "it gives the longest text");
   assert.match(translator, /never throws/i, "it says what a refusal or a failure gives");
 });
+
+test("the README lists ft.translate with its permission", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const row = readme.split("\n").find((line) => line.startsWith("| `ft.translate."));
+  assert.ok(row, "it is in the table");
+  assert.ok(row.includes("`ft.translate.languages/detect/status/prepare/remove/translate`"), "with its six calls");
+  assert.match(row, /\| `translate` \|$/, "and its permission");
+});
+
+test("the README explains on-device translation: the flow, the pair, the limits and the privacy", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "On-device translation").replace(/\s+/g, " ");
+  assert.ok(text.includes('"translate": true'), "how to ask for it in module.json");
+  assert.ok(text.includes('"minCoreVersion": "1.7.0"'), "and from which app");
+  for (const call of ["languages()", "detect(text)", "status(from, to)", "prepare(from, to)", "translate(text, from, to)", "remove(from, to)"]) {
+    assert.ok(text.includes(`\`${call}\``), `it explains ${call}`);
+  }
+  assert.ok(text.indexOf("`detect(text)`") < text.indexOf("`status(from, to)`"), "detect, then status");
+  assert.ok(text.indexOf("`status(from, to)`") < text.indexOf("`prepare(from, to)`"), "status, then prepare");
+  assert.ok(text.indexOf("`prepare(from, to)`") < text.indexOf("`translate(text, from, to)`"), "prepare, then translate");
+  assert.match(text, /per pair of languages/, "the state is per pair");
+  for (const status of ['"installed"', '"downloadable"', '"unsupported"']) assert.ok(text.includes(`\`${status}\``), `it says what ${status} means`);
+  assert.match(text, /5 000 characters/, "the longest text");
+  assert.match(text, /never throws/, "what a refusal or a failure gives");
+  assert.ok(text.includes("The text never leaves the phone."));
+  assert.ok(text.includes("On iPhone the translation is done by iOS."));
+  assert.ok(text.includes("On Android the translator is Google's ML Kit, built into the app: the text stays on the phone. Google receives which languages are used and diagnostic data about the app, not the text."));
+  assert.match(text, /downloaded once from Apple or Google/, "where the language packs come from");
+});
