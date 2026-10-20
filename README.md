@@ -30,6 +30,8 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | Llamada | Qué hace | Permiso |
 | --- | --- | --- |
 | `ft.onOpen(fn)` | lo que el usuario le entrega, y si la app va en oscuro | `messages` para el texto |
+| `ft.onHook(fn)` | a run of a chat hook the tool binds to (`hooks` in `module.json`): the app runs the tool hidden, hands it the text, and waits up to 5 minutes for its result (from app 1.7.0, 2026-10-20; see "Chat hooks") | `messages: given` for `message` and `composer` |
+| `ft.show()` | brings the window up while the tool runs hidden for a hook, to ask the user something; a no-op otherwise (from app 1.7.0) | ninguno |
 | `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
 | `ft.takePhoto()` | abre la app de cámara del teléfono y devuelve la foto como `pickFile`, o `null` si el usuario vuelve atrás, no hay cámara o no está permitida (desde la app 1.4.1) | ninguno |
 | `ft.send(name, mime, data)` | entrega un fichero al chat; lo envía la app | `send` |
@@ -177,6 +179,88 @@ if (state === "downloadable" && (await userAcceptsTheDownload(to))) {
 }
 if (state === "installed") result.textContent = (await ft.translate.translate(text, from, to)) ?? "";
 ```
+
+## Chat hooks
+
+From app **1.7.0** (2026-10-20) a tool may bind to a conversation's own screens, so the user reaches
+it without opening it. It says which hooks in `module.json`, each with its label and icon (an
+Ionicon the app lends), and gives the texts in other languages under `locales`:
+
+```json
+"minCoreVersion": "1.7.0",
+"hooks": {
+  "message":  { "label": "Translate", "icon": "language-outline" },
+  "composer": { "label": "Translate", "icon": "language-outline" },
+  "settings": { "label": "Translation", "icon": "language-outline",
+    "fields": [
+      { "key": "lang",    "type": "select", "label": "Language" },
+      { "key": "receive", "type": "toggle", "label": "Translate what I receive" },
+      { "key": "send",    "type": "toggle", "label": "Send translated" }
+    ],
+    "note": "Language packs are downloaded once; translation happens on the phone." }
+},
+"permissions": { "messages": "given", "send": "propose" },
+"locales": { "es": { "hooks": { "message": "Traducir", "composer": "Traducir",
+  "settings": { "label": "Traducción", "note": "Los paquetes de idioma se descargan una vez.",
+    "fields": { "lang": "Idioma", "receive": "Traducir lo que recibo", "send": "Enviar traducido" } } } } }
+```
+
+- `message`: a link with the hook's label inside each received text message (unless the
+  conversation's language, from `settings`, is the app's). The tool gets the message's text and
+  `ref`; the `text` it gives back replaces the message's text, with a "See original" link to go back
+  and forth, and is kept on the phone until the message is edited or deleted. Needs
+  `messages: "given"`.
+- `composer`: no button. With `auto.composer` on (from `settings`), the app runs it when the user
+  sends and sends the `text` it gives back; the user's own words stay with the message on the
+  phone. If the tool gives `null` or fails, the draft goes as written, with a notice. Needs
+  `messages: "given"` and `send: "propose"`.
+- `settings`: a group of rows on the contact's or circle's page, drawn by the app under the hook's
+  label and icon: a select (`"type": "select"`) or a toggle (`"type": "toggle"`) per field, in
+  order, and the note under them. One to eight fields; each `key` names its value. Needs nothing.
+
+**How a hook runs.** The app runs the tool **hidden**, in a frame with no window but the same
+permissions (it asks the user on the spot for one not granted yet), and hands it each run through
+`ft.onHook`: the text, the conversation's key (`chat`, the same as `onOpen`'s: keep what belongs to
+a conversation under it), the message's `ref`, the app's language and whether the user started it
+(`manual`). The handler resolves with its result, or with `null` when there is nothing to show or
+keep. For a yes or a no, such as a download, the tool gives back `ask`,
+`{ ask: { text: "Download German? About 30 MB, once." } }`: the app shows the text in an alert and,
+on OK, runs the hook again with `answer: true`, and the tool goes ahead. For anything more,
+`ft.show()` brings the window up, and it closes by itself when the result arrives. The app waits up
+to 5 minutes for a run; after that it keeps nothing and tells the user the tool did not answer.
+While hidden, a tool may still say something short with `ft.notify` (that the text is already in
+the user's language, say).
+
+**How settings run.** The app runs `settings` hidden with `manual: false` when it opens the
+contact's or circle's page, and when a conversation opens with no language kept for it; `text` then
+holds the last 5 texts received in it, one per line (with `messages: "given"`). The tool answers
+with the whole group:
+
+```json
+{ "values": { "lang": "fr", "receive": false, "send": false },
+  "options": { "lang": [{ "value": "", "label": "None" }, { "value": "fr", "label": "French (detected)" }] },
+  "auto": { "message": false, "composer": false },
+  "lang": "fr" }
+```
+
+`values` fills each row, by key; `options` gives the choices of each select, labelled in the app's
+language; `auto` says what the app runs on its own in this conversation (`message` on each text
+received while it is open, `composer` when the user sends); `lang` is the conversation's language,
+or null. When the user changes a row, the app runs `settings` with `manual: true` and the changed
+`values`; the tool keeps them (in its own `ft.records`) and answers the same shape, or `ask` first
+when the change needs a yes. The app keeps only `auto` and `lang`, per conversation and tool.
+Nothing runs outside the conversation that is open.
+
+```js
+ft.onHook(async (hook) => {
+  if (hook.name === "message") return { text: await explain(hook.text, hook.lang) };
+  if (hook.name === "settings") return await settingsOf(hook.chat, hook.values ?? {});
+  return null;
+});
+```
+
+Hooks are Premium, like every tool. Only a tool binds to them, never a game, and the app refuses a
+manifest with a hook it does not know or without the permissions above.
 
 ## Los iconos los presta el núcleo
 

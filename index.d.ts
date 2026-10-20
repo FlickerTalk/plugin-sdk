@@ -20,6 +20,9 @@ export interface PluginLocale {
   name?: string;
   /** At most 200 characters. */
   summary?: string;
+  /** The hooks' labels in this language (2026-10-20), at most 64 characters each, and the
+   *  settings' title, field labels by key and note (at most 200 characters). */
+  hooks?: { message?: string; composer?: string; settings?: { label?: string; fields?: Record<string, string>; note?: string } };
 }
 
 /**
@@ -40,6 +43,51 @@ export type PluginLocales = Record<string, PluginLocale>;
  * its root (see the README); this name is then the fallback, shown when there is no image.
  */
 export type PluginManifestIcon = string;
+
+/** The conversation's hooks a tool may bind to (2026-10-20). */
+export type PluginHookName = "message" | "composer" | "settings";
+
+/** What the link or the group of a hook says, and its icon. */
+export interface PluginHookDeclaration {
+  /** In English, at most 64 characters; translated under `locales.<lang>.hooks`. */
+  label: string;
+  /** An Ionicon the app lends, named as the manifest's `icon` is. */
+  icon: string;
+}
+
+/** One row of a tool's settings, drawn by the app. */
+export interface PluginSettingsField {
+  /** The name of its value in `values`: `^[a-z][a-zA-Z0-9]*$`, at most 32, unique in the group. */
+  key: string;
+  /** A select, whose options the tool gives in `options` when it runs, or a toggle. */
+  type: "select" | "toggle";
+  /** In English, at most 64 characters; translated under `locales.<lang>.hooks.settings.fields`. */
+  label: string;
+}
+
+/** The `settings` hook: a group of rows on the contact's or circle's page. */
+export interface PluginSettingsDeclaration extends PluginHookDeclaration {
+  /** One to eight rows, in order. */
+  fields: PluginSettingsField[];
+  /** A line under the rows, in English, at most 200 characters. */
+  note?: string;
+}
+
+/**
+ * `hooks` in `module.json` (2026-10-20, from app 1.7.0): which of the conversation's hooks this
+ * tool binds to. `message` is a link inside each received text message, whose result replaces the
+ * text (the original a tap away); `composer` has no button: the app runs it on its own when the
+ * user sends, and sends its result; `settings` is a group of rows the app draws on the contact's
+ * or circle's page from the declared fields. The app runs the tool hidden and hands it each run
+ * through `onHook`; it knows nothing of what the tool does. `message` and `composer` need
+ * `messages: "given"`, and `composer` also `send: "propose"`; `settings` needs nothing. Tools only:
+ * the app refuses a game with hooks, or an unknown hook.
+ */
+export interface PluginManifestHooks {
+  message?: PluginHookDeclaration;
+  composer?: PluginHookDeclaration;
+  settings?: PluginSettingsDeclaration;
+}
 
 /** What the plugin is opened with. */
 export interface PluginOpen {
@@ -75,11 +123,61 @@ export interface PluginOpen {
    *  and its own for this plugin. It says nothing of who the contact is, and it is this phone's
    *  alone: the other side has another one, so never send it, not even over `live`. Key what you
    *  keep per conversation (a match, a list) by it. Absent when the plugin was opened outside a
-   *  conversation (from Settings, say). */
+   *  conversation (from Settings, say). The same key as `PluginHook.chat` (2026-10-20). */
   chat?: string;
+  /** The hook the window is in view for (2026-10-20, from app 1.7.0): the running hook's name
+   *  after `show()`. Absent otherwise. */
+  hook?: PluginHookName;
   /** Which Ionic the app lends this frame (from app 1.6.0): its `@ionic/core` version, also on the
    *  frame's root as `data-ionic`. Absent on an older app, which lends none. See `PluginIonic`. */
   ionic?: PluginIonic;
+}
+
+/** One run of a hook (2026-10-20, from app 1.7.0), as `onHook` gets it. */
+export interface PluginHook {
+  name: PluginHookName;
+  /** The message or the draft (`message`, `composer`). For `settings`: on the hidden run
+   *  (`manual: false`), the last 5 texts received in the conversation, one per line, when the app
+   *  has any and the tool has `messages: "given"`; "" otherwise. */
+  text: string;
+  /** Opaque, stable per chat and per plugin: the key to keep per-chat settings under. The same
+   *  as `PluginOpen.chat`. */
+  chat: string;
+  /** The message's reference (`message` only), as `PluginOpen.ref`; null otherwise. */
+  ref: string | null;
+  /** The app's language (`es`, `zh-TW`). */
+  lang: string;
+  /** Whether the user started it; false when the app runs it on its own (automatic). */
+  manual: boolean;
+  /** True when the app runs the hook again because the user said yes to its `ask`. */
+  answer?: boolean;
+  /** `settings` with `manual: true`: the values the user changed, by field key (a select's value,
+   *  a toggle's true or false). */
+  values?: Record<string, string | boolean>;
+}
+
+/**
+ * What a hook run gives back. `text`: for `message`, what the app shows (and keeps) in place of
+ * the message's text, with a way back to the original; for `composer`, what is sent. For
+ * `settings`, every run gives back the group as it is: `values`, `options`, `lang` and `auto`.
+ */
+export interface PluginHookResult {
+  text?: string;
+  /** The conversation's language (`settings`), as a language tag (`de`, `zh-Hant`), told from what
+   *  was received or chosen by the user; null when it has none. */
+  lang?: string | null;
+  /** What the app runs on its own in this conversation (`settings`): `message` on every text
+   *  message received while it is open, `composer` when the user sends. */
+  auto?: { message?: boolean; composer?: boolean };
+  /** A yes or a no to ask the user first, such as a download, instead of opening the window: the
+   *  app shows `text` in an alert (OK / Cancel) and, on OK, runs the hook again with
+   *  `answer: true`. */
+  ask?: { text: string };
+  /** The settings' values by field key (`settings`): what the app shows in each row. */
+  values?: Record<string, string | boolean>;
+  /** The choices of each select field by key (`settings`), in order, each with its value and the
+   *  label the app shows, in the app's language. */
+  options?: Record<string, { value: string; label: string }[]>;
 }
 
 /**
@@ -373,6 +471,22 @@ export type PluginIcon = string;
 export interface FlickerTalk {
   /** Called when the app opens the plugin. Register it while the module loads. */
   onOpen(handler: (opened: PluginOpen) => void): void;
+
+  /**
+   * Called once per hook run (2026-10-20, from app 1.7.0): the app opens the tool hidden in the
+   * chat and hands it the hook; resolve with the result, or with null when there is nothing to
+   * show or keep (then nothing changes). Register it while the module loads. The app waits up to
+   * 5 minutes, about what a language pack takes to download; after that it keeps nothing and
+   * tells the user the tool did not answer. See `PluginManifestHooks`.
+   */
+  onHook(handler: (hook: PluginHook) => Promise<PluginHookResult | null>): void;
+
+  /**
+   * Shows the plugin's window if it is running hidden for a hook, to ask the user something
+   * first (a download, a language); a no-op otherwise. The window closes by itself when the
+   * hook's result arrives. Call it before drawing anything the user must see.
+   */
+  show(): void;
 
   /**
    * Asks the app to ask the user for a file, in the system's own picker. The plugin never opens
