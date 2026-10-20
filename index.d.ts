@@ -312,6 +312,38 @@ export interface PluginLocation {
   at: number;
 }
 
+/** Whether a language pair can be used right now, after a download, or not at all. */
+export type PluginTranslationStatus = "installed" | "downloadable" | "unsupported";
+
+/**
+ * Translation on the phone (2026-10-20, from app 1.7.0). The text never leaves the phone: on
+ * iPhone (iOS 18 or newer) the translation is done by iOS; on Android the translator is Google's
+ * ML Kit, built into the app, and Google receives which languages are used and diagnostic data
+ * about the app, not the text. Language packs are downloaded once from Apple or Google.
+ *
+ * The state is per pair of languages, because that is how iOS gives it, so a plugin goes in
+ * order: `detect` → `status` → `prepare` when the pair is `downloadable` → `translate`. A text has
+ * 1 to 5 000 characters; the core waits about 30 seconds for `detect` and `translate` and about
+ * 5 minutes for `prepare`. Every call resolves and never throws: without the permission, on a
+ * phone that cannot translate (a desktop, an iPhone before iOS 18) or when something fails,
+ * `languages` gives `[]`, `detect` and `translate` give `null`, `status` gives `"unsupported"`,
+ * and `prepare` and `remove` give `false`.
+ */
+export interface PluginTranslator {
+  /** BCP-47 tags this phone can translate between ("es", "pt", "zh-Hans"); empty = cannot translate. */
+  languages(): Promise<string[]>;
+  /** Guesses the language of a text on the phone; null when it cannot tell. */
+  detect(text: string): Promise<string | null>;
+  /** Whether this pair is ready, needs a download, or is not available on this phone. */
+  status(from: string, to: string): Promise<PluginTranslationStatus>;
+  /** Downloads what the pair needs; may show a system sheet. Resolves true when ready. */
+  prepare(from: string, to: string): Promise<boolean>;
+  /** Removes a downloaded pack when the phone lets the app do it (Android); false otherwise. */
+  remove(from: string, to: string): Promise<boolean>;
+  /** Translates on the phone; `from` and `to` are required. Resolves null when it could not. */
+  translate(text: string, from: string, to: string): Promise<string | null>;
+}
+
 /** What a call the core made for the plugin brought back. `body` is base64. */
 export interface PluginAnswer {
   status: number;
@@ -422,6 +454,13 @@ export interface FlickerTalk {
    * sees a card that opens the phone's own maps app, without any plugin.
    */
   location(): Promise<PluginLocation | null>;
+
+  /**
+   * On-device translation (2026-10-20). Needs the `translate` permission; the app asks the user
+   * the first time a call needs it. From app 1.7.0: a plugin that uses it sets `minCoreVersion`
+   * to 1.7.0. See `PluginTranslator`.
+   */
+  translate: PluginTranslator;
 
   /** Closes the plugin's window. */
   close(): void;
