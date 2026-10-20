@@ -178,6 +178,26 @@ if (state === "downloadable" && (await userAcceptsTheDownload(to))) {
 if (state === "installed") result.textContent = (await ft.translate.translate(text, from, to)) ?? "";
 ```
 
+## What a tool can switch on in the app
+
+From app **1.7.0** (2026-10-20) a tool may switch on a feature in the app's own screens, outside
+its window, for as long as it is installed. It says so in `module.json` with `provides`
+(`PluginManifestProvides` in `index.d.ts`):
+
+```json
+"minCoreVersion": "1.7.0",
+"provides": ["translate"]
+```
+
+`translate` is the only value today. In every chat, the app shows a Translate link under each
+received message, and a translate button in the composer that turns a draft into the other
+person's language, editable before it is sent. It uses the phone's translator, the same one as
+`ft.translate` (see "On-device translation"), and nothing is translated until the user taps. The
+app does it itself: the plugin's window is not opened and the plugin never sees the messages, so
+`provides` asks for no permission. In the app, tools are part of Premium, and so is what a tool
+switches on. Only a tool may say it, not a game, and the app refuses a manifest with a value it
+does not know.
+
 ## Los iconos los presta el núcleo
 
 Un plugin no trae imágenes ni pide red, así que la app le presta sus iconos

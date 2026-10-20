@@ -41,6 +41,15 @@ export type PluginLocales = Record<string, PluginLocale>;
  */
 export type PluginManifestIcon = string;
 
+/**
+ * `provides` in `module.json` (2026-10-20, from app 1.7.0): what a tool switches on in the app's
+ * own screens while it is installed. `translate` shows a Translate link under received messages
+ * and a translate button in the composer, using the phone's translator; the app does it itself,
+ * without opening the plugin's window. Only a tool may say it, never a game. Optional; the app
+ * refuses a manifest with a value it does not know.
+ */
+export type PluginManifestProvides = "translate"[];
+
 /** What the plugin is opened with. */
 export interface PluginOpen {
   /** The text the user handed it, if it was granted `messages`; empty otherwise. */

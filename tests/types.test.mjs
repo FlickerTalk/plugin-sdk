@@ -341,3 +341,29 @@ test("the README explains on-device translation: the flow, the pair, the limits 
   assert.ok(text.includes("On Android the translator is Google's ML Kit, built into the app: the text stays on the phone. Google receives which languages are used and diagnostic data about the app, not the text."));
   assert.match(text, /downloaded once from Apple or Google/, "where the language packs come from");
 });
+
+// 2026-10-20 (app#177, translation in the chat): `provides` in module.json says what a tool
+// switches on in the app's own screens. The app reads it from the installed tools; the plugin's
+// window has nothing to do with it.
+test("the manifest's provides is typed", () => {
+  assert.match(types, /\nexport type PluginManifestProvides = "translate"\[\];/);
+  const at = types.indexOf("export type PluginManifestProvides");
+  const doc = types.slice(types.lastIndexOf("/**", at), at);
+  assert.match(doc, /Translate link under received messages/, "it says what translate shows");
+  assert.match(doc, /composer/, "and where the button goes");
+  assert.match(doc, /game/, "it says a game may not");
+  assert.match(doc, /refuse/, "it says what an unknown value does");
+  assert.match(doc, /1\.7\.0/, "from which app");
+});
+
+test("the README says what a tool can switch on in the app", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "What a tool can switch on in the app").replace(/\s+/g, " ");
+  assert.ok(text.includes('"provides": ["translate"]'), "how to declare it in module.json");
+  assert.ok(text.includes('"minCoreVersion": "1.7.0"'), "and from which app");
+  assert.match(text, /Translate link under (every|each) received message/, "what the reader of a chat sees");
+  assert.match(text, /composer/, "and what the writer sees");
+  assert.match(text, /phone's translator/, "with which translator");
+  assert.match(text, /Premium/, "that it comes with Premium, like every tool");
+  assert.match(text, /game/, "that a game may not");
+  assert.ok(!/forever/i.test(text), "never 'forever'");
+});
