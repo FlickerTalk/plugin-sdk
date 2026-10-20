@@ -14,7 +14,30 @@
         "properties": { "send": { "enum": ["nothing", "propose"] } }
       },
       "opens": { "maxItems": 0 },
-      "views": { "maxItems": 0 }
+      "views": { "maxItems": 0 },
+      "hooks": { "maxProperties": 0 }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "hooks": { "anyOf": [{ "required": ["message"] }, { "required": ["composer"] }] } }, "required": ["hooks"] },
+      "then": { "required": ["permissions"], "properties": { "permissions": { "required": ["messages"], "properties": { "messages": { "const": "given" } } } } }
+    },
+    {
+      "if": { "properties": { "hooks": { "required": ["composer"] } }, "required": ["hooks"] },
+      "then": { "required": ["permissions"], "properties": { "permissions": { "required": ["send"], "properties": { "send": { "const": "propose" } } } } }
+    }
+  ],
+  "$defs": {
+    "hookLabel": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "\\S" },
+    "hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "icon"],
+      "properties": {
+        "label": { "description": "What the button or the row says, in English; translated under locales.", "$ref": "#/$defs/hookLabel" },
+        "icon": { "description": "An Ionicon the app lends, as icon.", "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 64 }
+      }
     }
   },
   "properties": {
@@ -43,6 +66,16 @@
       "enum": ["tool", "game"],
       "default": "tool"
     },
+    "hooks": {
+      "description": "The chat's hooks this tool binds to (2026-10-20, from app 1.7.0): message, a button on a held text message, whose result shows under the message; composer, a button in the composer, whose result replaces the draft; chat, a row in the chat's options that opens the tool's window. Each gives the label and the icon of its button. The app runs the tool hidden for message and composer, and knows nothing of what it does. message and composer need messages: \"given\", and composer also send: \"propose\". Tools only: a game binds to no hook.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "message": { "$ref": "#/$defs/hook" },
+        "composer": { "$ref": "#/$defs/hook" },
+        "chat": { "$ref": "#/$defs/hook" }
+      }
+    },
     "summary": {
       "description": "One line about what it does, for the catalogue. In English.",
       "type": "string",
@@ -67,7 +100,17 @@
         "additionalProperties": false,
         "properties": {
           "name": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "\\S" },
-          "summary": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" }
+          "summary": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
+          "hooks": {
+            "description": "The labels of the hooks in this language (2026-10-20).",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "message": { "$ref": "#/$defs/hookLabel" },
+              "composer": { "$ref": "#/$defs/hookLabel" },
+              "chat": { "$ref": "#/$defs/hookLabel" }
+            }
+          }
         }
       }
     },
