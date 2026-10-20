@@ -14,7 +14,8 @@
         "properties": { "send": { "enum": ["nothing", "propose"] } }
       },
       "opens": { "maxItems": 0 },
-      "views": { "maxItems": 0 }
+      "views": { "maxItems": 0 },
+      "provides": { "maxItems": 0 }
     }
   },
   "properties": {
@@ -42,6 +43,12 @@
       "description": "What it is to the user (2026-10-02): a tool, opened from the chat, \"open with\" or as a viewer; or a game, opened from the games with a contact. A tool unless it says otherwise. A game may ask only for live and send, and opens no file; it needs minCoreVersion 1.3.0 or newer to be published.",
       "enum": ["tool", "game"],
       "default": "tool"
+    },
+    "provides": {
+      "description": "What the tool switches on in the app's own screens: `translate` shows a Translate link under received messages and a translate button in the composer, using the phone's translator (2026-10-20).",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["translate"] }
     },
     "summary": {
       "description": "One line about what it does, for the catalogue. In English.",

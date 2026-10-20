@@ -178,6 +178,40 @@ test("a plugin may ask to translate text on the phone, and only as a yes or a no
   assert.match(permission.description, /2026-10-20/);
 });
 
+// 2026-10-20 (app#177, translation in the chat): a tool may say what it switches on in the app's
+// own screens. `translate` puts a Translate link under received messages and a translate button
+// in the composer. Only tools: a game only talks to its twin and the chat. The same cases as
+// `ft-plugins`, which refuses a value it does not know.
+test("a tool may say what it switches on in the app, and a game may not", () => {
+  const translator = {
+    id: "com.flickertalk.translate",
+    name: "Translator",
+    version: "1.1.0",
+    minCoreVersion: "1.7.0",
+    components: ["ft-translate"],
+    provides: ["translate"],
+    permissions: { messages: "given", translate: true, send: "propose", storage: "small" },
+  };
+  assert.ok(validate(translator), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...translator, kind: "tool" }), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...translator, provides: [] }), JSON.stringify(validate.errors));
+  assert.ok(validate(manifest), "a manifest without provides is still valid");
+  for (const wrong of [
+    { ...translator, provides: ["x"] },
+    { ...translator, provides: ["translate", "translate"] },
+    { ...translator, provides: "translate" },
+    { ...translator, provides: [true] },
+    { ...chess, provides: ["translate"] },
+  ]) {
+    assert.ok(!validate(wrong), `${JSON.stringify(wrong)} should be refused`);
+  }
+  const provides = schema.properties.provides;
+  assert.equal(
+    provides.description,
+    "What the tool switches on in the app's own screens: `translate` shows a Translate link under received messages and a translate button in the composer, using the phone's translator (2026-10-20).",
+  );
+});
+
 // 2026-10-02 (plan of the catalogue's translations, option A): a plugin may give its name and its
 // summary in the app's other languages. The top-level ones stay required and in English: they are
 // the fallback, and what an app older than 1.3.0 shows. The same limits as `ft-plugins`.
