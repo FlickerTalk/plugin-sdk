@@ -221,11 +221,14 @@ Ionicon the app lends), and gives the texts in other languages under `locales`:
 **How a hook runs.** The app runs the tool **hidden**, in a frame with no window but the same
 permissions (it asks the user on the spot for one not granted yet), and hands it each run through
 `ft.onHook`: the text, the conversation's key (`chat`, the same as `onOpen`'s: keep what belongs to
-a conversation under it), the message's `ref`, the app's language and whether the user started it
-(`manual`). The handler resolves with its result, or with `null` when there is nothing to show or
+a conversation under it), the message's `ref`, the app's language, whether the user started it
+(`manual`) and what it runs on (`platform`: `"android"`, `"ios"` for an iPhone or an iPad, or
+`"desktop"`). The handler resolves with its result, or with `null` when there is nothing to show or
 keep. For a yes or a no, such as a download, the tool gives back `ask`,
 `{ ask: { text: "Download German? About 30 MB, once." } }`: the app shows the text in an alert and,
-on OK, runs the hook again with `answer: true`, and the tool goes ahead. For anything more,
+on OK, runs the hook again with `answer: true`, and the tool goes ahead. An iPhone shows its own
+sheet before it downloads a language, so on `"ios"` a tool goes ahead without an `ask` of its own;
+on `"android"` nothing asks for it, so the tool does. For anything more,
 `ft.show()` brings the window up, and it closes by itself when the result arrives. The app waits up
 to 5 minutes for a run; after that it keeps nothing and tells the user the tool did not answer.
 While hidden, a tool may still say something short with `ft.notify` (that the text is already in

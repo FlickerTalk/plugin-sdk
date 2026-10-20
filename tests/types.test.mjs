@@ -390,6 +390,25 @@ test("a hook run hands the tool the text, the chat's key, the message, the langu
   assert.match(doc("values?:"), /changed/, "the values the user changed");
 });
 
+// 2026-10-21 (device QA of the translator): an iPhone shows its own sheet before a download, so a
+// tool asks nothing first there; Android shows none, so the tool asks. The hook says which.
+test("a hook run says what the tool runs on: an Android phone, an iPhone or a desktop", () => {
+  const hook = body("PluginHook");
+  assert.ok(hook.includes('\n  platform: "android" | "ios" | "desktop";'), "platform is declared");
+  const doc = before(hook, hook.indexOf("\n  platform:"));
+  assert.match(doc, /iPhone/, "what ios means");
+  assert.match(doc, /iPad/, "an iPad is ios too");
+  assert.match(doc, /desktop/i, "what desktop means");
+  assert.match(doc, /own sheet/, "why a tool would care: iOS asks before a download by itself");
+});
+
+test("the README says a hook tells the platform, and that an iPhone asks before a download by itself", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "Chat hooks").replace(/\s+/g, " ");
+  assert.ok(text.includes("`platform`"), "it names the field");
+  for (const value of ['`"android"`', '`"ios"`', '`"desktop"`']) assert.ok(text.includes(value), `it names ${value}`);
+  assert.match(text, /own sheet/, "that iOS asks by itself, so the tool does not ask first");
+});
+
 test("a hook gives back a text, the settings' values and options, the chat's language, what runs on its own, or a question", () => {
   const result = body("PluginHookResult");
   for (const field of [
