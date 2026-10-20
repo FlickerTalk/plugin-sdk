@@ -30,6 +30,8 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | Llamada | Qué hace | Permiso |
 | --- | --- | --- |
 | `ft.onOpen(fn)` | lo que el usuario le entrega, y si la app va en oscuro | `messages` para el texto |
+| `ft.onHook(fn)` | a run of a chat hook the tool binds to (`hooks` in `module.json`): the app runs the tool hidden, hands it the text, and waits up to 5 minutes for its result (from app 1.7.0, 2026-10-20; see "Chat hooks") | `messages: given` for `message` and `composer` |
+| `ft.show()` | brings the window up while the tool runs hidden for a hook, to ask the user something; a no-op otherwise (from app 1.7.0) | ninguno |
 | `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
 | `ft.takePhoto()` | abre la app de cámara del teléfono y devuelve la foto como `pickFile`, o `null` si el usuario vuelve atrás, no hay cámara o no está permitida (desde la app 1.4.1) | ninguno |
 | `ft.send(name, mime, data)` | entrega un fichero al chat; lo envía la app | `send` |
@@ -177,6 +179,67 @@ if (state === "downloadable" && (await userAcceptsTheDownload(to))) {
 }
 if (state === "installed") result.textContent = (await ft.translate.translate(text, from, to)) ?? "";
 ```
+
+## Chat hooks
+
+From app **1.7.0** (2026-10-20) a tool may bind to the chat's own screens, so the user reaches it
+without opening it first. It says which hooks in `module.json`, each with the label and the icon
+(an Ionicon the app lends) of its button, and the labels in other languages under `locales`:
+
+```json
+"minCoreVersion": "1.7.0",
+"hooks": {
+  "message":  { "label": "Translate",     "icon": "language-outline" },
+  "composer": { "label": "Translate",     "icon": "language-outline" },
+  "chat":     { "label": "Chat language", "icon": "language-outline" }
+},
+"permissions": { "messages": "given", "send": "propose" },
+"locales": { "es": { "hooks": { "message": "Traducir", "composer": "Traducir", "chat": "Idioma del chat" } } }
+```
+
+- `message`: a button in the bar that shows when a text message is held, next to "Open with",
+  one per installed tool. The tool gets the message's text and `ref`; the `text` it gives back
+  shows in a muted line under the message, kept on the phone and gone when the message is edited
+  or deleted. Needs `messages: "given"`.
+- `composer`: a round button next to send, while there is a draft. The tool gets the draft; the
+  `text` it gives back replaces it, with a strip above to go back to the original. The user is
+  still the one who presses send. Needs `messages: "given"` and `send: "propose"`.
+- `chat`: a row in the chat's options. It opens the tool's window as usual, with `hook: "chat"`
+  and the chat's key in `onOpen`, to set the tool up for this chat, and hands it the hook through
+  `ft.onHook` too; the window closes when the tool gives back its result (`auto`, below). Needs
+  nothing.
+
+**How a hook runs.** For `message` and `composer` the app opens the tool **hidden**, in a frame with
+no window but the same permissions (the app asks the user on the spot for one not granted yet),
+and hands it the hook through `ft.onHook`: the text, the chat's key (`chat`, the same as
+`onOpen`'s: keep per-chat settings under it), the message's `ref`, the app's language and whether
+the user started it (`manual`). The handler resolves with `{ text }`, or with `null` when there is
+nothing to show or keep. To ask the user something first (a download, a language), call
+`ft.show()`: the window comes up, and it closes by itself when the result arrives. The app waits up
+to 5 minutes, about what a language pack takes to download; after that it keeps nothing and tells
+the user the tool did not answer. While hidden, a tool may still say something short with
+`ft.notify` (that the text is already in the user's language, say) without bringing its window
+up. The hidden frame stays while the chat is open.
+
+**Automatic runs.** The `chat` hook may give back `auto`, such as
+`{ auto: { message: true, composer: true } }`, which the app keeps for this chat and this tool.
+With `auto.message`, every text message received while the chat is open (and, when it opens, the
+last 20 received without a line) goes through `message`; with `auto.composer`, pressing send runs
+`composer` and sends its result, or the draft as written, with a notice, when the tool gives `null`
+or fails. Nothing runs outside the chat. These
+runs come with `manual: false`: a tool should give `null` quietly rather than bring its window up.
+`{ auto: { message: false, composer: false } }` turns them off.
+
+```js
+ft.onHook(async (hook) => {
+  if (hook.name === "message") return { text: await explain(hook.text, hook.lang) };
+  if (hook.name === "chat") return { auto: await askForThisChat(hook.chat) };
+  return null;
+});
+```
+
+Hooks are Premium, like every tool. Only a tool binds to them, never a game, and the app refuses a
+manifest with a hook it does not know or without the permissions above.
 
 ## Los iconos los presta el núcleo
 

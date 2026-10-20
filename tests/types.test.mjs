@@ -394,3 +394,27 @@ test("onHook and show are typed, and onOpen says which hook opened the window", 
   const chatDoc = opened.slice(opened.lastIndexOf("/**", opened.indexOf("\n  chat?:")), opened.indexOf("\n  chat?:"));
   assert.match(chatDoc, /PluginHook\.chat/, "the chat's key is the same in a hook");
 });
+
+test("the README lists onHook and show", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  assert.ok(readme.split("\n").some((line) => line.startsWith("| `ft.onHook(fn)` |")), "onHook is in the table");
+  assert.ok(readme.split("\n").some((line) => line.startsWith("| `ft.show()` |")), "show is in the table");
+});
+
+test("the README explains the chat hooks", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "Chat hooks").replace(/\s+/g, " ");
+  assert.ok(text.includes('"hooks": {'), "how to declare them in module.json");
+  assert.ok(text.includes('"minCoreVersion": "1.7.0"'), "and from which app");
+  for (const name of ["`message`", "`composer`", "`chat`"]) assert.ok(text.includes(name), `it explains ${name}`);
+  assert.match(text, /held/, "where message appears");
+  assert.match(text, /composer/, "where composer appears");
+  assert.match(text, /hidden/, "that the app runs the tool hidden");
+  assert.ok(text.includes("`ft.show()`"), "and how it comes into view");
+  assert.match(text, /5 minutes/, "the limit");
+  assert.ok(text.includes("`auto`"), "the automatic runs");
+  assert.ok(text.includes('messages: "given"') && text.includes('send: "propose"'), "the permissions they need");
+  assert.ok(text.includes('"locales"'), "how to translate the labels");
+  assert.match(text, /Premium/, "that hooks come with Premium, like every tool");
+  assert.match(text, /game/, "that a game may not");
+  assert.ok(!/forever/i.test(text), "never 'forever'");
+});
