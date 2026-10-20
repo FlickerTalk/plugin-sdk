@@ -274,3 +274,70 @@ test("the README says how to use the Ionic the app lends, in English", () => {
   assert.match(section, /Android/, "where the form gotcha bites");
   assert.match(section, /confirm\(\)/, "window.confirm answers false in the sandbox");
 });
+
+// 2026-10-20 (app#177): on-device translation. The core serves it with the phone's translator
+// (Translation on iOS, ML Kit on Android); the state is per pair of languages because Apple only
+// gives it that way, and the flow is explicit: detect → status → prepare → translate.
+test("the translator's state of a pair of languages is typed", () => {
+  assert.match(types, /\nexport type PluginTranslationStatus = "installed" \| "downloadable" \| "unsupported";/);
+});
+
+test("the translator has the six calls of the contract, with their shapes", () => {
+  const translator = body("PluginTranslator");
+  for (const signature of [
+    "languages(): Promise<string[]>;",
+    "detect(text: string): Promise<string | null>;",
+    "status(from: string, to: string): Promise<PluginTranslationStatus>;",
+    "prepare(from: string, to: string): Promise<boolean>;",
+    "remove(from: string, to: string): Promise<boolean>;",
+    "translate(text: string, from: string, to: string): Promise<string | null>;",
+  ]) {
+    assert.ok(translator.includes(`\n  ${signature}`), `${signature} is declared`);
+  }
+  const doc = (method) => translator.slice(translator.lastIndexOf("/**", translator.indexOf(`\n  ${method}(`)), translator.indexOf(`\n  ${method}(`));
+  assert.match(doc("languages"), /empty/i, "it says what a phone that cannot translate gives");
+  assert.match(doc("prepare"), /system sheet/i, "it says the phone may show its own sheet");
+  assert.match(doc("remove"), /Android/, "it says where a pack can be removed");
+  assert.match(doc("translate"), /required/i, "it says both languages are given");
+});
+
+test("ft.translate needs the translate permission, from app 1.7.0", () => {
+  const api = body("FlickerTalk");
+  assert.match(api, /\n  translate: PluginTranslator;/);
+  const doc = api.slice(api.lastIndexOf("/**", api.indexOf("\n  translate:")), api.indexOf("\n  translate:"));
+  assert.match(doc, /Needs the `translate` permission/);
+  assert.match(doc, /1\.7\.0/, "from which app");
+  const translator = types.slice(types.lastIndexOf("/**", types.indexOf("export interface PluginTranslator {")), types.indexOf("export interface PluginTranslator {"));
+  assert.match(translator, /never leaves the phone/, "it says the text stays on the phone");
+  assert.match(translator, /per pair/i, "it says the state is per pair of languages");
+  assert.match(translator, /5 ?000/, "it gives the longest text");
+  assert.match(translator, /never throws/i, "it says what a refusal or a failure gives");
+});
+
+test("the README lists ft.translate with its permission", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const row = readme.split("\n").find((line) => line.startsWith("| `ft.translate."));
+  assert.ok(row, "it is in the table");
+  assert.ok(row.includes("`ft.translate.languages/detect/status/prepare/remove/translate`"), "with its six calls");
+  assert.match(row, /\| `translate` \|$/, "and its permission");
+});
+
+test("the README explains on-device translation: the flow, the pair, the limits and the privacy", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "On-device translation").replace(/\s+/g, " ");
+  assert.ok(text.includes('"translate": true'), "how to ask for it in module.json");
+  assert.ok(text.includes('"minCoreVersion": "1.7.0"'), "and from which app");
+  for (const call of ["languages()", "detect(text)", "status(from, to)", "prepare(from, to)", "translate(text, from, to)", "remove(from, to)"]) {
+    assert.ok(text.includes(`\`${call}\``), `it explains ${call}`);
+  }
+  assert.ok(text.indexOf("`detect(text)`") < text.indexOf("`status(from, to)`"), "detect, then status");
+  assert.ok(text.indexOf("`status(from, to)`") < text.indexOf("`prepare(from, to)`"), "status, then prepare");
+  assert.ok(text.indexOf("`prepare(from, to)`") < text.indexOf("`translate(text, from, to)`"), "prepare, then translate");
+  assert.match(text, /per pair of languages/, "the state is per pair");
+  for (const status of ['"installed"', '"downloadable"', '"unsupported"']) assert.ok(text.includes(`\`${status}\``), `it says what ${status} means`);
+  assert.match(text, /5 000 characters/, "the longest text");
+  assert.match(text, /never throws/, "what a refusal or a failure gives");
+  assert.ok(text.includes("The text never leaves the phone."));
+  assert.ok(text.includes("On iPhone the translation is done by iOS."));
+  assert.ok(text.includes("On Android the translator is Google's ML Kit, built into the app: the text stays on the phone. Google receives which languages are used and diagnostic data about the app, not the text."));
+  assert.match(text, /downloaded once from Apple or Google/, "where the language packs come from");
+});

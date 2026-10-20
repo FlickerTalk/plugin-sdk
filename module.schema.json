@@ -125,6 +125,10 @@
         "location": {
           "description": "Whether it may ask for the phone's current position, once, while the app is open; the phone asks the user the first time (2026-10-02).",
           "type": "boolean"
+        },
+        "translate": {
+          "description": "Whether it may translate text on the phone: with iOS's own translator on iPhone, and with Google's ML Kit, built into the app, on Android. The text never leaves the phone; language packs are downloaded once from Apple or Google, and on Android Google receives which languages are used and diagnostic data about the app, not the text (2026-10-20).",
+          "type": "boolean"
         }
       }
     }

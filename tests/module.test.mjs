@@ -76,6 +76,7 @@ test("a game may ask only for the live channel and sending, and opens no file", 
     { remind: true },
     { drive: true },
     { storage: "large" },
+    { translate: true },
     // It proposes a line for the chat; it never sends on the user's behalf.
     { send: "auto" },
   ]) {
@@ -145,6 +146,36 @@ test("a plugin may ask for the phone's current position, and only as a yes or a 
   ]) {
     assert.equal(validate(wrong), false, JSON.stringify(wrong.permissions));
   }
+});
+
+// 2026-10-20 (app#177): the translator asks to translate text with the phone's own translator.
+// A yes or a no, like location; a game may not ask for it (it only talks to its twin and the chat).
+test("a plugin may ask to translate text on the phone, and only as a yes or a no", () => {
+  const translate = {
+    id: "com.flickertalk.translate",
+    name: "Translator",
+    version: "1.0.0",
+    minCoreVersion: "1.7.0",
+    components: ["ft-translate"],
+    opens: ["text/plain"],
+    permissions: { messages: "given", translate: true, send: "propose", storage: "small" },
+  };
+  assert.ok(validate(translate), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...translate, permissions: { translate: false } }), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { ...translate, permissions: { translate: "always" } },
+    { ...translate, permissions: { translate: 1 } },
+    { ...translate, permissions: { translate: "true" } },
+    { ...chess, permissions: { live: true, translate: true } },
+  ]) {
+    assert.equal(validate(wrong), false, JSON.stringify(wrong));
+  }
+  const permission = schema.properties.permissions.properties.translate;
+  assert.match(permission.description, /never leaves the phone/, "it says the text stays on the phone");
+  assert.match(permission.description, /Apple or Google/, "it says where the language packs come from");
+  assert.match(permission.description, /ML Kit/, "it names Android's translator");
+  assert.match(permission.description, /not the text/, "it says what Google receives, and what not");
+  assert.match(permission.description, /2026-10-20/);
 });
 
 // 2026-10-02 (plan of the catalogue's translations, option A): a plugin may give its name and its
