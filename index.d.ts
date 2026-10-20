@@ -20,6 +20,8 @@ export interface PluginLocale {
   name?: string;
   /** At most 200 characters. */
   summary?: string;
+  /** The labels of the chat's hooks in this language (2026-10-20), at most 64 characters each. */
+  hooks?: Partial<Record<PluginHookName, string>>;
 }
 
 /**
@@ -40,6 +42,29 @@ export type PluginLocales = Record<string, PluginLocale>;
  * its root (see the README); this name is then the fallback, shown when there is no image.
  */
 export type PluginManifestIcon = string;
+
+/** The chat's hooks a tool may bind to (2026-10-20). */
+export type PluginHookName = "message" | "composer" | "chat";
+
+/** What the button of a hook looks like. */
+export interface PluginHookDeclaration {
+  /** What the button or the row says, in English, at most 64 characters; translated under
+   *  `locales.<lang>.hooks`. */
+  label: string;
+  /** An Ionicon the app lends, named as the manifest's `icon` is. */
+  icon: string;
+}
+
+/**
+ * `hooks` in `module.json` (2026-10-20, from app 1.7.0): which chat hooks this tool binds to.
+ * `message` is a button on a held text message, whose result shows under the message; `composer`
+ * is a button in the composer, whose result replaces the draft; `chat` is a row in the chat's
+ * options that opens the tool's window. The app runs the tool hidden for `message` and
+ * `composer` and hands it the hook through `onHook`; it knows nothing of what the tool does.
+ * `message` and `composer` need `messages: "given"`, and `composer` also `send: "propose"`;
+ * `chat` needs nothing. Tools only: the app refuses a game with hooks, or an unknown hook.
+ */
+export type PluginManifestHooks = Partial<Record<PluginHookName, PluginHookDeclaration>>;
 
 /** What the plugin is opened with. */
 export interface PluginOpen {
@@ -75,11 +100,41 @@ export interface PluginOpen {
    *  and its own for this plugin. It says nothing of who the contact is, and it is this phone's
    *  alone: the other side has another one, so never send it, not even over `live`. Key what you
    *  keep per conversation (a match, a list) by it. Absent when the plugin was opened outside a
-   *  conversation (from Settings, say). */
+   *  conversation (from Settings, say). The same key as `PluginHook.chat` (2026-10-20). */
   chat?: string;
+  /** The hook the window is open for (2026-10-20, from app 1.7.0): `chat` when the user opened it
+   *  from the `chat` hook's row, or the running hook's name after `show()`. Absent otherwise. */
+  hook?: PluginHookName;
   /** Which Ionic the app lends this frame (from app 1.6.0): its `@ionic/core` version, also on the
    *  frame's root as `data-ionic`. Absent on an older app, which lends none. See `PluginIonic`. */
   ionic?: PluginIonic;
+}
+
+/** One run of a chat hook (2026-10-20, from app 1.7.0), as `onHook` gets it. */
+export interface PluginHook {
+  name: PluginHookName;
+  /** The message or the draft (`message`, `composer`); "" for `chat`. */
+  text: string;
+  /** Opaque, stable per chat and per plugin: the key to keep per-chat settings under. The same
+   *  as `PluginOpen.chat`. */
+  chat: string;
+  /** The message's reference (`message` only), as `PluginOpen.ref`; null otherwise. */
+  ref: string | null;
+  /** The app's language (`es`, `zh-TW`). */
+  lang: string;
+  /** Whether the user started it; false when the app runs it on its own (automatic). */
+  manual: boolean;
+}
+
+/**
+ * What a hook run gives back. `text`: for `message`, the line the app shows (and keeps) under the
+ * message; for `composer`, the text that replaces the draft. `auto` (from `chat`): whether the
+ * app runs `message` on every text message received while the chat is open, and `composer` when
+ * the user presses send, for this chat, until the tool says otherwise.
+ */
+export interface PluginHookResult {
+  text?: string;
+  auto?: { message?: boolean; composer?: boolean };
 }
 
 /**
@@ -373,6 +428,22 @@ export type PluginIcon = string;
 export interface FlickerTalk {
   /** Called when the app opens the plugin. Register it while the module loads. */
   onOpen(handler: (opened: PluginOpen) => void): void;
+
+  /**
+   * Called once per hook run (2026-10-20, from app 1.7.0): the app opens the tool hidden in the
+   * chat and hands it the hook; resolve with the result, or with null when there is nothing to
+   * show or keep (then nothing changes). Register it while the module loads. The app waits up to
+   * 5 minutes, about what a language pack takes to download; after that it keeps nothing and
+   * tells the user the tool did not answer. See `PluginManifestHooks`.
+   */
+  onHook(handler: (hook: PluginHook) => Promise<PluginHookResult | null>): void;
+
+  /**
+   * Shows the plugin's window if it is running hidden for a hook, to ask the user something
+   * first (a download, a language); a no-op otherwise. The window closes by itself when the
+   * hook's result arrives. Call it before drawing anything the user must see.
+   */
+  show(): void;
 
   /**
    * Asks the app to ask the user for a file, in the system's own picker. The plugin never opens
