@@ -57,9 +57,10 @@ export interface PluginHookDeclaration {
 
 /**
  * `hooks` in `module.json` (2026-10-20, from app 1.7.0): which chat hooks this tool binds to.
- * `message` is a button on a held text message, whose result shows under the message; `composer`
- * is a button in the composer, whose result replaces the draft; `chat` is a row in the chat's
- * options that opens the tool's window. The app runs the tool hidden for `message` and
+ * `message` is a link inside each received text message of a chat in another language, whose
+ * result replaces the text (the original a tap away); `composer` is a button in the composer,
+ * whose result replaces the draft; `chat` is an icon in the chat's header that opens the tool's
+ * window, and what the app runs on its own to learn the chat's language. The app runs the tool hidden for `message` and
  * `composer` and hands it the hook through `onHook`; it knows nothing of what the tool does.
  * `message` and `composer` need `messages: "given"`, and `composer` also `send: "propose"`;
  * `chat` needs nothing. Tools only: the app refuses a game with hooks, or an unknown hook.
@@ -113,7 +114,9 @@ export interface PluginOpen {
 /** One run of a chat hook (2026-10-20, from app 1.7.0), as `onHook` gets it. */
 export interface PluginHook {
   name: PluginHookName;
-  /** The message or the draft (`message`, `composer`); "" for `chat`. */
+  /** The message or the draft (`message`, `composer`). For `chat`: "" when the user opened it, or
+   *  the last texts received in the chat, one per line, when the app runs it on its own to learn
+   *  the chat's language (`manual: false`; answer `{ lang }`). */
   text: string;
   /** Opaque, stable per chat and per plugin: the key to keep per-chat settings under. The same
    *  as `PluginOpen.chat`. */
@@ -124,17 +127,27 @@ export interface PluginHook {
   lang: string;
   /** Whether the user started it; false when the app runs it on its own (automatic). */
   manual: boolean;
+  /** True when the app runs the hook again because the user said yes to its `ask`. */
+  answer?: boolean;
 }
 
 /**
- * What a hook run gives back. `text`: for `message`, the line the app shows (and keeps) under the
- * message; for `composer`, the text that replaces the draft. `auto` (from `chat`): whether the
- * app runs `message` on every text message received while the chat is open, and `composer` when
- * the user presses send, for this chat, until the tool says otherwise.
+ * What a hook run gives back. `text`: for `message`, what the app shows (and keeps) in place of
+ * the message's text, with a way back to the original; for `composer`, the text that replaces the
+ * draft. `auto` (from `chat`): whether the app runs `message` on every text message received while
+ * the chat is open, and `composer` when the user presses send, for this chat, until the tool says
+ * otherwise.
  */
 export interface PluginHookResult {
   text?: string;
+  /** The chat's language (from `chat`), as a language tag (`de`, `zh-Hant`), told from what was
+   *  received or chosen by the user; null when the chat has none any more. */
+  lang?: string | null;
   auto?: { message?: boolean; composer?: boolean };
+  /** A yes or a no to ask the user first, such as a download, instead of opening the window: the
+   *  app shows `text` in an alert (OK / Cancel) and, on OK, runs the hook again with
+   *  `answer: true`. */
+  ask?: { text: string };
 }
 
 /**

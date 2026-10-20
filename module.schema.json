@@ -67,7 +67,7 @@
       "default": "tool"
     },
     "hooks": {
-      "description": "The chat's hooks this tool binds to (2026-10-20, from app 1.7.0): message, a button on a held text message, whose result shows under the message; composer, a button in the composer, whose result replaces the draft; chat, a row in the chat's options that opens the tool's window. Each gives the label and the icon of its button. The app runs the tool hidden for message and composer, and knows nothing of what it does. message and composer need messages: \"given\", and composer also send: \"propose\". Tools only: a game binds to no hook.",
+      "description": "The chat's hooks this tool binds to (2026-10-20, from app 1.7.0): message, a link inside each received text message of a chat in another language, whose result replaces the text; composer, a button in the composer, whose result replaces the draft; chat, an icon in the chat's header that opens the tool's window, and what the app runs on its own to learn the chat's language. Each gives the label and the icon of its button. The app runs the tool hidden for message and composer, and knows nothing of what it does. message and composer need messages: \"given\", and composer also send: \"propose\". Tools only: a game binds to no hook.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

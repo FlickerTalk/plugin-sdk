@@ -197,25 +197,29 @@ without opening it first. It says which hooks in `module.json`, each with the la
 "locales": { "es": { "hooks": { "message": "Traducir", "composer": "Traducir", "chat": "Idioma del chat" } } }
 ```
 
-- `message`: a button in the bar that shows when a text message is held, next to "Open with",
-  one per installed tool. The tool gets the message's text and `ref`; the `text` it gives back
-  shows in a muted line under the message, kept on the phone and gone when the message is edited
-  or deleted. Needs `messages: "given"`.
+- `message`: a link with the hook's label inside each received text message, in a chat whose
+  language (the `chat` hook's `lang`) is not the app's. The tool gets the message's text and
+  `ref`; the `text` it gives back replaces the message's text, with a "See original" link to go
+  back and forth, and is kept on the phone until the message is edited or deleted. Needs
+  `messages: "given"`.
 - `composer`: a round button next to send, while there is a draft. The tool gets the draft; the
   `text` it gives back replaces it, with a strip above to go back to the original. The user is
   still the one who presses send. Needs `messages: "given"` and `send: "propose"`.
-- `chat`: a row in the chat's options. It opens the tool's window as usual, with `hook: "chat"`
+- `chat`: an icon in the chat's header. It opens the tool's window as usual, with `hook: "chat"`
   and the chat's key in `onOpen`, to set the tool up for this chat, and hands it the hook through
-  `ft.onHook` too; the window closes when the tool gives back its result (`auto`, below). Needs
-  nothing.
+  `ft.onHook` too; the window closes when the tool gives back its result (`lang` and `auto`,
+  below). Needs nothing.
 
 **How a hook runs.** For `message` and `composer` the app opens the tool **hidden**, in a frame with
 no window but the same permissions (the app asks the user on the spot for one not granted yet),
 and hands it the hook through `ft.onHook`: the text, the chat's key (`chat`, the same as
 `onOpen`'s: keep per-chat settings under it), the message's `ref`, the app's language and whether
 the user started it (`manual`). The handler resolves with `{ text }`, or with `null` when there is
-nothing to show or keep. To ask the user something first (a download, a language), call
-`ft.show()`: the window comes up, and it closes by itself when the result arrives. The app waits up
+nothing to show or keep. For a yes or a no, such as a download, the tool does not open its window:
+it gives back `ask`, `{ ask: { text: "Download German? About 30 MB, once." } }`; the app shows the
+text in an alert and, on OK, runs the hook again with `answer: true`, and the tool goes ahead. To
+ask anything else first (a language from a list), call `ft.show()`: the window comes up, and it
+closes by itself when the result arrives. The app waits up
 to 5 minutes, about what a language pack takes to download; after that it keeps nothing and tells
 the user the tool did not answer. While hidden, a tool may still say something short with
 `ft.notify` (that the text is already in the user's language, say) without bringing its window
@@ -230,10 +234,16 @@ or fails. Nothing runs outside the chat. These
 runs come with `manual: false`: a tool should give `null` quietly rather than bring its window up.
 `{ auto: { message: false, composer: false } }` turns them off.
 
+**The chat's language.** When a chat with no language is opened, the app runs `chat` on its own
+(`manual: false`) with the last 5 texts received in it, one per line, as `text`; the tool answers
+`{ lang }`, the language it tells from them, without its window or any download, and the app keeps
+it for the chat. Opened by the user, `chat` gives back `{ lang, auto }` when the user saves, and
+`lang: null` when the user removes the chat's language.
+
 ```js
 ft.onHook(async (hook) => {
   if (hook.name === "message") return { text: await explain(hook.text, hook.lang) };
-  if (hook.name === "chat") return { auto: await askForThisChat(hook.chat) };
+  if (hook.name === "chat") return hook.manual ? await askForThisChat(hook.chat) : { lang: await tell(hook.text) };
   return null;
 });
 ```

@@ -366,13 +366,42 @@ test("a hook run hands the tool the text, the chat's key, the message, the langu
     assert.ok(hook.includes(`\n  ${field}`), `${field} is declared`);
   }
   const doc = (field) => hook.slice(hook.lastIndexOf("/**", hook.indexOf(`\n  ${field}:`)), hook.indexOf(`\n  ${field}:`));
-  assert.match(doc("text"), /"" for `chat`/, "the chat's row has no text");
+  assert.match(doc("text"), /"" when the user opened it/, "the chat's row has no text");
+  assert.match(doc("text"), /last texts received/, "unless the app asks for the chat's language");
   assert.match(doc("chat"), /PluginOpen\.chat/, "the same key as onOpen's");
   assert.match(doc("ref"), /PluginOpen\.ref/);
   assert.match(doc("manual"), /automatic/, "false means automatic");
   const result = body("PluginHookResult");
   assert.match(result, /\n  text\?: string;/);
   assert.match(result, /\n  auto\?: \{ message\?: boolean; composer\?: boolean \};/);
+});
+
+// 2026-10-20 (plan §8.2c, "too many steps"): a hook does not open its window to ask a yes or a no
+// (a download); it hands the app the question, the app asks it in an alert and runs the hook again
+// with the answer. The `chat` hook also tells the chat's language from what was received.
+test("a hook may hand the app a question and get the answer in a second run, and tell the chat's language", () => {
+  const hook = body("PluginHook");
+  assert.ok(hook.includes("\n  answer?: boolean;"), "answer is declared");
+  const answerDoc = hook.slice(hook.lastIndexOf("/**", hook.indexOf("\n  answer?:")), hook.indexOf("\n  answer?:"));
+  assert.match(answerDoc, /`ask`/, "it is the answer to the question");
+  assert.match(answerDoc, /again/, "in a second run");
+  const result = body("PluginHookResult");
+  assert.ok(result.includes("\n  lang?: string | null;"), "lang is declared");
+  assert.ok(result.includes("\n  ask?: { text: string };"), "ask is declared");
+  const doc = (field) => result.slice(result.lastIndexOf("/**", result.indexOf(`\n  ${field}?:`)), result.indexOf(`\n  ${field}?:`));
+  assert.match(doc("lang"), /chat's language/);
+  assert.match(doc("lang"), /null/, "and how to say it has none");
+  assert.match(doc("ask"), /alert/, "how the app asks it");
+  assert.match(doc("ask"), /answer: true/, "and what it does on yes");
+});
+
+test("the README explains a hook's question and the chat's language told on its own", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "Chat hooks").replace(/\s+/g, " ");
+  assert.ok(text.includes("`ask`") && text.includes("`answer: true`"), "the question and its answer");
+  assert.match(text, /alert/, "where the app asks it");
+  assert.ok(text.includes("`{ lang }`"), "what the chat hook gives back on its own");
+  assert.match(text, /last 5 texts/, "from what");
+  assert.match(text, /See original/, "a translated message keeps its original a tap away");
 });
 
 test("onHook and show are typed, and onOpen says which hook opened the window", () => {
@@ -406,7 +435,7 @@ test("the README explains the chat hooks", () => {
   assert.ok(text.includes('"hooks": {'), "how to declare them in module.json");
   assert.ok(text.includes('"minCoreVersion": "1.7.0"'), "and from which app");
   for (const name of ["`message`", "`composer`", "`chat`"]) assert.ok(text.includes(name), `it explains ${name}`);
-  assert.match(text, /held/, "where message appears");
+  assert.match(text, /inside each received text message/, "where message appears (plan §8.2c: no holding)");
   assert.match(text, /composer/, "where composer appears");
   assert.match(text, /hidden/, "that the app runs the tool hidden");
   assert.ok(text.includes("`ft.show()`"), "and how it comes into view");
