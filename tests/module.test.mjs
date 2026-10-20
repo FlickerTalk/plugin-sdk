@@ -178,10 +178,22 @@ test("a plugin may ask to translate text on the phone, and only as a yes or a no
   assert.match(permission.description, /2026-10-20/);
 });
 
-// 2026-10-20 (app#177, chat hooks): a tool may bind to the chat's hooks: a button on a held
-// message, a button in the composer, and a row in the chat's options. The app runs it hidden and
-// knows nothing of what it does. Hooks that read the text need `messages: "given"`; the composer's
-// also needs `send: "propose"`. Never a game. The same cases as `ft-plugins`.
+// 2026-10-20 (app#177, chat hooks, plan §8.2d): a tool may bind to the conversation's hooks: a
+// link in a received message's bubble (`message`), what the app runs when the user sends
+// (`composer`), and a group of settings the app draws on the contact's or circle's page
+// (`settings`, from the fields the tool declares). The app knows nothing of what the tool does.
+// Hooks that read the text need `messages: "given"`; the composer's also needs `send: "propose"`.
+// Never a game. The same cases as `ft-plugins`.
+const settings = {
+  label: "Translation",
+  icon: "language-outline",
+  fields: [
+    { key: "lang", type: "select", label: "Language" },
+    { key: "receive", type: "toggle", label: "Translate what I receive" },
+    { key: "send", type: "toggle", label: "Send translated" },
+  ],
+  note: "Language packs are downloaded once; translation happens on the phone.",
+};
 const hooked = {
   id: "com.flickertalk.translate",
   name: "Translator",
@@ -191,18 +203,20 @@ const hooked = {
   hooks: {
     message: { label: "Translate", icon: "language-outline" },
     composer: { label: "Translate", icon: "language-outline" },
-    chat: { label: "Chat language", icon: "language-outline" },
+    settings,
   },
   permissions: { messages: "given", translate: true, send: "propose", storage: "small" },
 };
 
-test("a tool may bind to the chat's hooks, each with a label and a lent icon", () => {
+test("a tool may bind to the conversation's hooks, each with a label and a lent icon", () => {
   assert.ok(validate(hooked), JSON.stringify(validate.errors));
   assert.ok(validate({ ...hooked, kind: "tool" }), JSON.stringify(validate.errors));
   assert.ok(validate({ ...hooked, hooks: { message: hooked.hooks.message } }), JSON.stringify(validate.errors));
   assert.ok(validate({ ...hooked, hooks: { message: { label: "x".repeat(64), icon: "x".repeat(64) } } }), JSON.stringify(validate.errors));
   assert.ok(validate(manifest), "a manifest without hooks is still valid");
   for (const wrong of [
+    // `chat` was the first draft's name of what is now `settings`.
+    { chat: { label: "Chat language", icon: "language-outline" } },
     { reply: { label: "Reply", icon: "arrow-undo-outline" } },
     { message: { label: "Translate" } },
     { message: { icon: "language-outline" } },
@@ -214,20 +228,51 @@ test("a tool may bind to the chat's hooks, each with a label and a lent icon", (
     { message: { label: "Translate", icon: "icon/language-outline.svg" } },
     { message: { label: "Translate", icon: "" } },
     { message: { label: "Translate", icon: "language-outline", order: 1 } },
+    { message: { label: "Translate", icon: "language-outline", fields: settings.fields } },
     { message: "Translate" },
     ["message"],
   ]) {
     assert.ok(!validate({ ...hooked, hooks: wrong }), `hooks ${JSON.stringify(wrong)} should be refused`);
   }
   const hooks = schema.properties.hooks;
-  for (const word of ["message", "composer", "chat", 'messages: "given"', 'send: "propose"', "game", "2026-10-20"]) {
+  for (const word of ["message", "composer", "settings", 'messages: "given"', 'send: "propose"', "game", "2026-10-20"]) {
     assert.ok(hooks.description.includes(word), `the description says ${word}`);
   }
 });
 
+test("a tool's settings are fields the app draws: selects and toggles, each with a key and a label, and a note", () => {
+  const with_ = (changed) => ({ ...hooked, hooks: { settings: { ...settings, ...changed } } });
+  assert.ok(validate(with_({})), JSON.stringify(validate.errors));
+  assert.ok(validate(with_({ note: undefined })), "the note is optional");
+  assert.ok(validate(with_({ fields: [{ key: "on", type: "toggle", label: "On" }] })), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { fields: [] },
+    { fields: undefined },
+    { fields: Array.from({ length: 9 }, (_, index) => ({ key: `k${index}`, type: "toggle", label: "On" })) },
+    { fields: [{ key: "lang", type: "text", label: "Language" }] },
+    { fields: [{ key: "lang", type: "select" }] },
+    { fields: [{ type: "select", label: "Language" }] },
+    { fields: [{ key: "Lang", type: "select", label: "Language" }] },
+    { fields: [{ key: "my-lang", type: "select", label: "Language" }] },
+    { fields: [{ key: "x".repeat(33), type: "select", label: "Language" }] },
+    { fields: [{ key: "lang", type: "select", label: "" }] },
+    { fields: [{ key: "lang", type: "select", label: "x".repeat(65) }] },
+    { fields: [{ key: "lang", type: "select", label: "Language", options: [] }] },
+    { note: "" },
+    { note: "x".repeat(201) },
+    { label: "" },
+    { icon: "Language" },
+    { extra: true },
+  ]) {
+    const manifestWith = with_(wrong);
+    if ("fields" in wrong && wrong.fields === undefined) delete manifestWith.hooks.settings.fields;
+    assert.ok(!validate(manifestWith), `settings with ${JSON.stringify(wrong)} should be refused`);
+  }
+});
+
 test("a hook that reads the text needs messages given, and the composer's also send propose", () => {
-  const chatOnly = { ...hooked, hooks: { chat: hooked.hooks.chat } };
-  assert.ok(validate((({ permissions, ...rest }) => rest)(chatOnly)), "the chat's row needs nothing");
+  const settingsOnly = { ...hooked, hooks: { settings } };
+  assert.ok(validate((({ permissions, ...rest }) => rest)(settingsOnly)), "the settings need nothing");
   for (const [hooks, permissions] of [
     [{ message: hooked.hooks.message }, undefined],
     [{ message: hooked.hooks.message }, { send: "propose" }],
@@ -246,24 +291,42 @@ test("a hook that reads the text needs messages given, and the composer's also s
 });
 
 test("a game binds to no hook", () => {
-  for (const hooks of [{ chat: hooked.hooks.chat }, hooked.hooks]) {
+  for (const hooks of [{ settings }, hooked.hooks]) {
     assert.ok(!validate({ ...chess, hooks }), `a game with ${JSON.stringify(hooks)} should be refused`);
   }
 });
 
-test("a hook's label may be given in the app's languages", () => {
+test("a hook's labels, the settings' fields and note may be given in the app's languages", () => {
   const translated = {
     ...hooked,
-    locales: { es: { name: "Traductor", hooks: { message: "Traducir", composer: "Traducir", chat: "Idioma del chat" } }, "zh-TW": { hooks: { chat: "聊天語言" } } },
+    locales: {
+      es: {
+        name: "Traductor",
+        hooks: {
+          message: "Traducir",
+          composer: "Traducir",
+          settings: { label: "Traducción", fields: { lang: "Idioma", receive: "Traducir lo que recibo", send: "Enviar traducido" }, note: "Los paquetes de idioma se descargan una vez." },
+        },
+      },
+      "zh-TW": { hooks: { settings: { fields: { lang: "語言" } } } },
+    },
   };
   assert.ok(validate(translated), JSON.stringify(validate.errors));
   for (const wrong of [
+    { es: { hooks: { chat: "Idioma del chat" } } },
     { es: { hooks: { reply: "Responder" } } },
     { es: { hooks: { message: "" } } },
     { es: { hooks: { message: "   " } } },
     { es: { hooks: { message: "x".repeat(65) } } },
     { es: { hooks: { message: { label: "Traducir" } } } },
     { es: { hooks: "Traducir" } },
+    { es: { hooks: { settings: "Traducción" } } },
+    { es: { hooks: { settings: { label: "" } } } },
+    { es: { hooks: { settings: { fields: { lang: "" } } } } },
+    { es: { hooks: { settings: { fields: { Lang: "Idioma" } } } } },
+    { es: { hooks: { settings: { fields: { lang: "x".repeat(65) } } } } },
+    { es: { hooks: { settings: { note: "x".repeat(201) } } } },
+    { es: { hooks: { settings: { extra: "no" } } } },
   ]) {
     assert.ok(!validate({ ...hooked, locales: wrong }), `${JSON.stringify(wrong)} should be refused`);
   }

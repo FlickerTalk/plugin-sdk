@@ -30,6 +30,35 @@
   ],
   "$defs": {
     "hookLabel": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "\\S" },
+    "hookNote": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
+    "fieldKey": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$", "maxLength": 32 },
+    "settings": {
+      "description": "A group of settings per conversation that the app draws on the contact's or circle's page (2026-10-20): the fields, in order, and an optional note under them.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "icon", "fields"],
+      "properties": {
+        "label": { "description": "The group's title, in English; translated under locales.", "$ref": "#/$defs/hookLabel" },
+        "icon": { "description": "An Ionicon the app lends, as icon.", "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 64 },
+        "fields": {
+          "description": "The rows: a select, whose options the tool gives when it runs, or a toggle. Each key is the name of its value in the hook's values; keys are unique.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "type", "label"],
+            "properties": {
+              "key": { "$ref": "#/$defs/fieldKey" },
+              "type": { "enum": ["select", "toggle"] },
+              "label": { "$ref": "#/$defs/hookLabel" }
+            }
+          }
+        },
+        "note": { "description": "A line under the fields, in English; translated under locales.", "$ref": "#/$defs/hookNote" }
+      }
+    },
     "hook": {
       "type": "object",
       "additionalProperties": false,
@@ -67,13 +96,13 @@
       "default": "tool"
     },
     "hooks": {
-      "description": "The chat's hooks this tool binds to (2026-10-20, from app 1.7.0): message, a link inside each received text message of a chat in another language, whose result replaces the text; composer, a button in the composer, whose result replaces the draft; chat, an icon in the chat's header that opens the tool's window, and what the app runs on its own to learn the chat's language. Each gives the label and the icon of its button. The app runs the tool hidden for message and composer, and knows nothing of what it does. message and composer need messages: \"given\", and composer also send: \"propose\". Tools only: a game binds to no hook.",
+      "description": "The conversation's hooks this tool binds to (2026-10-20, from app 1.7.0): message, a link inside each received text message, whose result replaces the text; composer, what the app runs on its own when the user sends, whose result is what is sent; settings, a group of fields the app draws on the contact's or circle's page. The app runs the tool hidden and knows nothing of what it does. message and composer need messages: \"given\", and composer also send: \"propose\". Tools only: a game binds to no hook.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "message": { "$ref": "#/$defs/hook" },
         "composer": { "$ref": "#/$defs/hook" },
-        "chat": { "$ref": "#/$defs/hook" }
+        "settings": { "$ref": "#/$defs/settings" }
       }
     },
     "summary": {
@@ -102,13 +131,25 @@
           "name": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "\\S" },
           "summary": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
           "hooks": {
-            "description": "The labels of the hooks in this language (2026-10-20).",
+            "description": "The hooks' labels in this language (2026-10-20), and the settings' title, field labels by key, and note.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
               "message": { "$ref": "#/$defs/hookLabel" },
               "composer": { "$ref": "#/$defs/hookLabel" },
-              "chat": { "$ref": "#/$defs/hookLabel" }
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "label": { "$ref": "#/$defs/hookLabel" },
+                  "fields": {
+                    "type": "object",
+                    "propertyNames": { "$ref": "#/$defs/fieldKey" },
+                    "additionalProperties": { "$ref": "#/$defs/hookLabel" }
+                  },
+                  "note": { "$ref": "#/$defs/hookNote" }
+                }
+              }
             }
           }
         }
