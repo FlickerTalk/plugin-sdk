@@ -433,3 +433,26 @@ test("the README lists onHook and show", () => {
   assert.ok(readme.split("\n").some((line) => line.startsWith("| `ft.show()` |")), "show is in the table");
 });
 
+test("the README explains the three hooks and how settings run", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "Chat hooks").replace(/\s+/g, " ");
+  assert.ok(text.includes('"hooks": {'), "how to declare them in module.json");
+  assert.ok(text.includes('"minCoreVersion": "1.7.0"'), "and from which app");
+  for (const name of ["`message`", "`composer`", "`settings`"]) assert.ok(text.includes(name), `it explains ${name}`);
+  assert.match(text, /inside each received text message/, "where message appears");
+  assert.match(text, /See original/, "a translated message keeps its original a tap away");
+  assert.match(text, /no button/, "composer has no button: the app runs it on its own");
+  assert.match(text, /contact's or circle's page/, "where settings appear");
+  assert.ok(text.includes('"type": "select"') && text.includes('"type": "toggle"'), "the two kinds of field");
+  assert.ok(text.includes("`manual: false`") && text.includes("`manual: true`"), "the two settings runs");
+  assert.match(text, /last 5 texts received/, "what the hidden run gets");
+  for (const field of ["`values`", "`options`", "`auto`", "`lang`", "`ask`", "`answer: true`"]) assert.ok(text.includes(field), `it explains ${field}`);
+  assert.match(text, /alert/, "where the app asks the question");
+  assert.match(text, /hidden/, "that the app runs the tool hidden");
+  assert.match(text, /5 minutes/, "the limit");
+  assert.ok(text.includes('messages: "given"') && text.includes('send: "propose"'), "the permissions they need");
+  assert.ok(text.includes('"locales"'), "how to translate the labels");
+  assert.match(text, /Premium/, "that hooks come with Premium, like every tool");
+  assert.match(text, /game/, "that a game may not");
+  assert.ok(!/header|`chat` hook|"chat":/.test(text), "no header icon and no chat hook any more");
+  assert.ok(!/forever/i.test(text), "never 'forever'");
+});

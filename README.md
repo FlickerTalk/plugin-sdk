@@ -182,68 +182,79 @@ if (state === "installed") result.textContent = (await ft.translate.translate(te
 
 ## Chat hooks
 
-From app **1.7.0** (2026-10-20) a tool may bind to the chat's own screens, so the user reaches it
-without opening it first. It says which hooks in `module.json`, each with the label and the icon
-(an Ionicon the app lends) of its button, and the labels in other languages under `locales`:
+From app **1.7.0** (2026-10-20) a tool may bind to a conversation's own screens, so the user reaches
+it without opening it. It says which hooks in `module.json`, each with its label and icon (an
+Ionicon the app lends), and gives the texts in other languages under `locales`:
 
 ```json
 "minCoreVersion": "1.7.0",
 "hooks": {
-  "message":  { "label": "Translate",     "icon": "language-outline" },
-  "composer": { "label": "Translate",     "icon": "language-outline" },
-  "chat":     { "label": "Chat language", "icon": "language-outline" }
+  "message":  { "label": "Translate", "icon": "language-outline" },
+  "composer": { "label": "Translate", "icon": "language-outline" },
+  "settings": { "label": "Translation", "icon": "language-outline",
+    "fields": [
+      { "key": "lang",    "type": "select", "label": "Language" },
+      { "key": "receive", "type": "toggle", "label": "Translate what I receive" },
+      { "key": "send",    "type": "toggle", "label": "Send translated" }
+    ],
+    "note": "Language packs are downloaded once; translation happens on the phone." }
 },
 "permissions": { "messages": "given", "send": "propose" },
-"locales": { "es": { "hooks": { "message": "Traducir", "composer": "Traducir", "chat": "Idioma del chat" } } }
+"locales": { "es": { "hooks": { "message": "Traducir", "composer": "Traducir",
+  "settings": { "label": "Traducción", "note": "Los paquetes de idioma se descargan una vez.",
+    "fields": { "lang": "Idioma", "receive": "Traducir lo que recibo", "send": "Enviar traducido" } } } } }
 ```
 
-- `message`: a link with the hook's label inside each received text message, in a chat whose
-  language (the `chat` hook's `lang`) is not the app's. The tool gets the message's text and
-  `ref`; the `text` it gives back replaces the message's text, with a "See original" link to go
-  back and forth, and is kept on the phone until the message is edited or deleted. Needs
+- `message`: a link with the hook's label inside each received text message (unless the
+  conversation's language, from `settings`, is the app's). The tool gets the message's text and
+  `ref`; the `text` it gives back replaces the message's text, with a "See original" link to go back
+  and forth, and is kept on the phone until the message is edited or deleted. Needs
   `messages: "given"`.
-- `composer`: a round button next to send, while there is a draft. The tool gets the draft; the
-  `text` it gives back replaces it, with a strip above to go back to the original. The user is
-  still the one who presses send. Needs `messages: "given"` and `send: "propose"`.
-- `chat`: an icon in the chat's header. It opens the tool's window as usual, with `hook: "chat"`
-  and the chat's key in `onOpen`, to set the tool up for this chat, and hands it the hook through
-  `ft.onHook` too; the window closes when the tool gives back its result (`lang` and `auto`,
-  below). Needs nothing.
+- `composer`: no button. With `auto.composer` on (from `settings`), the app runs it when the user
+  sends and sends the `text` it gives back; the user's own words stay with the message on the
+  phone. If the tool gives `null` or fails, the draft goes as written, with a notice. Needs
+  `messages: "given"` and `send: "propose"`.
+- `settings`: a group of rows on the contact's or circle's page, drawn by the app under the hook's
+  label and icon: a select (`"type": "select"`) or a toggle (`"type": "toggle"`) per field, in
+  order, and the note under them. One to eight fields; each `key` names its value. Needs nothing.
 
-**How a hook runs.** For `message` and `composer` the app opens the tool **hidden**, in a frame with
-no window but the same permissions (the app asks the user on the spot for one not granted yet),
-and hands it the hook through `ft.onHook`: the text, the chat's key (`chat`, the same as
-`onOpen`'s: keep per-chat settings under it), the message's `ref`, the app's language and whether
-the user started it (`manual`). The handler resolves with `{ text }`, or with `null` when there is
-nothing to show or keep. For a yes or a no, such as a download, the tool does not open its window:
-it gives back `ask`, `{ ask: { text: "Download German? About 30 MB, once." } }`; the app shows the
-text in an alert and, on OK, runs the hook again with `answer: true`, and the tool goes ahead. To
-ask anything else first (a language from a list), call `ft.show()`: the window comes up, and it
-closes by itself when the result arrives. The app waits up
-to 5 minutes, about what a language pack takes to download; after that it keeps nothing and tells
-the user the tool did not answer. While hidden, a tool may still say something short with
-`ft.notify` (that the text is already in the user's language, say) without bringing its window
-up. The hidden frame stays while the chat is open.
+**How a hook runs.** The app runs the tool **hidden**, in a frame with no window but the same
+permissions (it asks the user on the spot for one not granted yet), and hands it each run through
+`ft.onHook`: the text, the conversation's key (`chat`, the same as `onOpen`'s: keep what belongs to
+a conversation under it), the message's `ref`, the app's language and whether the user started it
+(`manual`). The handler resolves with its result, or with `null` when there is nothing to show or
+keep. For a yes or a no, such as a download, the tool gives back `ask`,
+`{ ask: { text: "Download German? About 30 MB, once." } }`: the app shows the text in an alert and,
+on OK, runs the hook again with `answer: true`, and the tool goes ahead. For anything more,
+`ft.show()` brings the window up, and it closes by itself when the result arrives. The app waits up
+to 5 minutes for a run; after that it keeps nothing and tells the user the tool did not answer.
+While hidden, a tool may still say something short with `ft.notify` (that the text is already in
+the user's language, say).
 
-**Automatic runs.** The `chat` hook may give back `auto`, such as
-`{ auto: { message: true, composer: true } }`, which the app keeps for this chat and this tool.
-With `auto.message`, every text message received while the chat is open (and, when it opens, the
-last 20 received without a line) goes through `message`; with `auto.composer`, pressing send runs
-`composer` and sends its result, or the draft as written, with a notice, when the tool gives `null`
-or fails. Nothing runs outside the chat. These
-runs come with `manual: false`: a tool should give `null` quietly rather than bring its window up.
-`{ auto: { message: false, composer: false } }` turns them off.
+**How settings run.** The app runs `settings` hidden with `manual: false` when it opens the
+contact's or circle's page, and when a conversation opens with no language kept for it; `text` then
+holds the last 5 texts received in it, one per line (with `messages: "given"`). The tool answers
+with the whole group:
 
-**The chat's language.** When a chat with no language is opened, the app runs `chat` on its own
-(`manual: false`) with the last 5 texts received in it, one per line, as `text`; the tool answers
-`{ lang }`, the language it tells from them, without its window or any download, and the app keeps
-it for the chat. Opened by the user, `chat` gives back `{ lang, auto }` when the user saves, and
-`lang: null` when the user removes the chat's language.
+```json
+{ "values": { "lang": "fr", "receive": false, "send": false },
+  "options": { "lang": [{ "value": "", "label": "None" }, { "value": "fr", "label": "French (detected)" }] },
+  "auto": { "message": false, "composer": false },
+  "lang": "fr" }
+```
+
+`values` fills each row, by key; `options` gives the choices of each select, labelled in the app's
+language; `auto` says what the app runs on its own in this conversation (`message` on each text
+received while it is open, `composer` when the user sends); `lang` is the conversation's language,
+or null. When the user changes a row, the app runs `settings` with `manual: true` and the changed
+`values`; the tool keeps them (in its own `ft.records`) and answers the same shape, or `ask` first
+when the change needs a yes. The app keeps only `auto` and `lang`, per conversation and tool.
+Nothing runs outside the conversation that is open.
 
 ```js
 ft.onHook(async (hook) => {
   if (hook.name === "message") return { text: await explain(hook.text, hook.lang) };
-  if (hook.name === "chat") return hook.manual ? await askForThisChat(hook.chat) : { lang: await tell(hook.text) };
+  if (hook.name === "settings") return await settingsOf(hook.chat, hook.values ?? {});
   return null;
 });
 ```
