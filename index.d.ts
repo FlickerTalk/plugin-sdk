@@ -149,6 +149,10 @@ export interface PluginHook {
   lang: string;
   /** Whether the user started it; false when the app runs it on its own (automatic). */
   manual: boolean;
+  /** What the tool runs on: `android`, `ios` (an iPhone or an iPad) or `desktop`. An iPhone shows
+   *  its own sheet before it downloads a language, so a tool need not ask first there; Android
+   *  shows none, so the tool asks (`ask`). */
+  platform: "android" | "ios" | "desktop";
   /** True when the app runs the hook again because the user said yes to its `ask`. */
   answer?: boolean;
   /** `settings` with `manual: true`: the values the user changed, by field key (a select's value,
