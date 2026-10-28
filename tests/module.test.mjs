@@ -76,6 +76,7 @@ test("a game may ask only for the live channel and sending, and opens no file", 
     { remind: true },
     { drive: true },
     { storage: "large" },
+    { translate: true },
     // It proposes a line for the chat; it never sends on the user's behalf.
     { send: "auto" },
   ]) {
@@ -144,6 +145,190 @@ test("a plugin may ask for the phone's current position, and only as a yes or a 
     { ...location, permissions: { location: 1 } },
   ]) {
     assert.equal(validate(wrong), false, JSON.stringify(wrong.permissions));
+  }
+});
+
+// 2026-10-20 (app#177): the translator asks to translate text with the phone's own translator.
+// A yes or a no, like location; a game may not ask for it (it only talks to its twin and the chat).
+test("a plugin may ask to translate text on the phone, and only as a yes or a no", () => {
+  const translate = {
+    id: "com.flickertalk.translate",
+    name: "Translator",
+    version: "1.0.0",
+    minCoreVersion: "1.7.0",
+    components: ["ft-translate"],
+    opens: ["text/plain"],
+    permissions: { messages: "given", translate: true, send: "propose", storage: "small" },
+  };
+  assert.ok(validate(translate), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...translate, permissions: { translate: false } }), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { ...translate, permissions: { translate: "always" } },
+    { ...translate, permissions: { translate: 1 } },
+    { ...translate, permissions: { translate: "true" } },
+    { ...chess, permissions: { live: true, translate: true } },
+  ]) {
+    assert.equal(validate(wrong), false, JSON.stringify(wrong));
+  }
+  const permission = schema.properties.permissions.properties.translate;
+  assert.match(permission.description, /never leaves the phone/, "it says the text stays on the phone");
+  assert.match(permission.description, /Apple or Google/, "it says where the language packs come from");
+  assert.match(permission.description, /ML Kit/, "it names Android's translator");
+  assert.match(permission.description, /not the text/, "it says what Google receives, and what not");
+  assert.match(permission.description, /2026-10-20/);
+});
+
+// 2026-10-20 (app#177, chat hooks, plan §8.2d): a tool may bind to the conversation's hooks: a
+// link in a received message's bubble (`message`), what the app runs when the user sends
+// (`composer`), and a group of settings the app draws on the contact's or circle's page
+// (`settings`, from the fields the tool declares). The app knows nothing of what the tool does.
+// Hooks that read the text need `messages: "given"`; the composer's also needs `send: "propose"`.
+// Never a game. The same cases as `ft-plugins`.
+const settings = {
+  label: "Translation",
+  icon: "language-outline",
+  fields: [
+    { key: "lang", type: "select", label: "Language" },
+    { key: "receive", type: "toggle", label: "Translate what I receive" },
+    { key: "send", type: "toggle", label: "Send translated" },
+  ],
+  note: "Language packs are downloaded once; translation happens on the phone.",
+};
+const hooked = {
+  id: "com.flickertalk.translate",
+  name: "Translator",
+  version: "1.1.0",
+  minCoreVersion: "1.7.0",
+  components: ["ft-translate"],
+  hooks: {
+    message: { label: "Translate", icon: "language-outline" },
+    composer: { label: "Translate", icon: "language-outline" },
+    settings,
+  },
+  permissions: { messages: "given", translate: true, send: "propose", storage: "small" },
+};
+
+test("a tool may bind to the conversation's hooks, each with a label and a lent icon", () => {
+  assert.ok(validate(hooked), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...hooked, kind: "tool" }), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...hooked, hooks: { message: hooked.hooks.message } }), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...hooked, hooks: { message: { label: "x".repeat(64), icon: "x".repeat(64) } } }), JSON.stringify(validate.errors));
+  assert.ok(validate(manifest), "a manifest without hooks is still valid");
+  for (const wrong of [
+    // `chat` was the first draft's name of what is now `settings`.
+    { chat: { label: "Chat language", icon: "language-outline" } },
+    { reply: { label: "Reply", icon: "arrow-undo-outline" } },
+    { message: { label: "Translate" } },
+    { message: { icon: "language-outline" } },
+    { message: { label: "", icon: "language-outline" } },
+    { message: { label: "   ", icon: "language-outline" } },
+    { message: { label: "x".repeat(65), icon: "language-outline" } },
+    { message: { label: 7, icon: "language-outline" } },
+    { message: { label: "Translate", icon: "Language Outline" } },
+    { message: { label: "Translate", icon: "icon/language-outline.svg" } },
+    { message: { label: "Translate", icon: "" } },
+    { message: { label: "Translate", icon: "language-outline", order: 1 } },
+    { message: { label: "Translate", icon: "language-outline", fields: settings.fields } },
+    { message: "Translate" },
+    ["message"],
+  ]) {
+    assert.ok(!validate({ ...hooked, hooks: wrong }), `hooks ${JSON.stringify(wrong)} should be refused`);
+  }
+  const hooks = schema.properties.hooks;
+  for (const word of ["message", "composer", "settings", 'messages: "given"', 'send: "propose"', "game", "2026-10-20"]) {
+    assert.ok(hooks.description.includes(word), `the description says ${word}`);
+  }
+});
+
+test("a tool's settings are fields the app draws: selects and toggles, each with a key and a label, and a note", () => {
+  const with_ = (changed) => ({ ...hooked, hooks: { settings: { ...settings, ...changed } } });
+  assert.ok(validate(with_({})), JSON.stringify(validate.errors));
+  assert.ok(validate(with_({ note: undefined })), "the note is optional");
+  assert.ok(validate(with_({ fields: [{ key: "on", type: "toggle", label: "On" }] })), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { fields: [] },
+    { fields: undefined },
+    { fields: Array.from({ length: 9 }, (_, index) => ({ key: `k${index}`, type: "toggle", label: "On" })) },
+    { fields: [{ key: "lang", type: "text", label: "Language" }] },
+    { fields: [{ key: "lang", type: "select" }] },
+    { fields: [{ type: "select", label: "Language" }] },
+    { fields: [{ key: "Lang", type: "select", label: "Language" }] },
+    { fields: [{ key: "my-lang", type: "select", label: "Language" }] },
+    { fields: [{ key: "x".repeat(33), type: "select", label: "Language" }] },
+    { fields: [{ key: "lang", type: "select", label: "" }] },
+    { fields: [{ key: "lang", type: "select", label: "x".repeat(65) }] },
+    { fields: [{ key: "lang", type: "select", label: "Language", options: [] }] },
+    { note: "" },
+    { note: "x".repeat(201) },
+    { label: "" },
+    { icon: "Language" },
+    { extra: true },
+  ]) {
+    const manifestWith = with_(wrong);
+    if ("fields" in wrong && wrong.fields === undefined) delete manifestWith.hooks.settings.fields;
+    assert.ok(!validate(manifestWith), `settings with ${JSON.stringify(wrong)} should be refused`);
+  }
+});
+
+test("a hook that reads the text needs messages given, and the composer's also send propose", () => {
+  const settingsOnly = { ...hooked, hooks: { settings } };
+  assert.ok(validate((({ permissions, ...rest }) => rest)(settingsOnly)), "the settings need nothing");
+  for (const [hooks, permissions] of [
+    [{ message: hooked.hooks.message }, undefined],
+    [{ message: hooked.hooks.message }, { send: "propose" }],
+    [{ message: hooked.hooks.message }, { messages: "none" }],
+    [{ composer: hooked.hooks.composer }, { send: "propose" }],
+    [{ composer: hooked.hooks.composer }, { messages: "given" }],
+    [{ composer: hooked.hooks.composer }, { messages: "given", send: "nothing" }],
+    [{ composer: hooked.hooks.composer }, { messages: "given", send: "auto" }],
+  ]) {
+    const wrong = { ...hooked, hooks, permissions };
+    if (permissions === undefined) delete wrong.permissions;
+    assert.ok(!validate(wrong), `${JSON.stringify(hooks)} with ${JSON.stringify(permissions)} should be refused`);
+  }
+  assert.ok(validate({ ...hooked, hooks: { message: hooked.hooks.message }, permissions: { messages: "given" } }), JSON.stringify(validate.errors));
+  assert.ok(validate({ ...hooked, hooks: { composer: hooked.hooks.composer }, permissions: { messages: "given", send: "propose" } }), JSON.stringify(validate.errors));
+});
+
+test("a game binds to no hook", () => {
+  for (const hooks of [{ settings }, hooked.hooks]) {
+    assert.ok(!validate({ ...chess, hooks }), `a game with ${JSON.stringify(hooks)} should be refused`);
+  }
+});
+
+test("a hook's labels, the settings' fields and note may be given in the app's languages", () => {
+  const translated = {
+    ...hooked,
+    locales: {
+      es: {
+        name: "Traductor",
+        hooks: {
+          message: "Traducir",
+          composer: "Traducir",
+          settings: { label: "Traducción", fields: { lang: "Idioma", receive: "Traducir lo que recibo", send: "Enviar traducido" }, note: "Los paquetes de idioma se descargan una vez." },
+        },
+      },
+      "zh-TW": { hooks: { settings: { fields: { lang: "語言" } } } },
+    },
+  };
+  assert.ok(validate(translated), JSON.stringify(validate.errors));
+  for (const wrong of [
+    { es: { hooks: { chat: "Idioma del chat" } } },
+    { es: { hooks: { reply: "Responder" } } },
+    { es: { hooks: { message: "" } } },
+    { es: { hooks: { message: "   " } } },
+    { es: { hooks: { message: "x".repeat(65) } } },
+    { es: { hooks: { message: { label: "Traducir" } } } },
+    { es: { hooks: "Traducir" } },
+    { es: { hooks: { settings: "Traducción" } } },
+    { es: { hooks: { settings: { label: "" } } } },
+    { es: { hooks: { settings: { fields: { lang: "" } } } } },
+    { es: { hooks: { settings: { fields: { Lang: "Idioma" } } } } },
+    { es: { hooks: { settings: { fields: { lang: "x".repeat(65) } } } } },
+    { es: { hooks: { settings: { note: "x".repeat(201) } } } },
+    { es: { hooks: { settings: { extra: "no" } } } },
+  ]) {
+    assert.ok(!validate({ ...hooked, locales: wrong }), `${JSON.stringify(wrong)} should be refused`);
   }
 });
 

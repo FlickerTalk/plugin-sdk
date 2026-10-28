@@ -20,6 +20,9 @@ export interface PluginLocale {
   name?: string;
   /** At most 200 characters. */
   summary?: string;
+  /** The hooks' labels in this language (2026-10-20), at most 64 characters each, and the
+   *  settings' title, field labels by key and note (at most 200 characters). */
+  hooks?: { message?: string; composer?: string; settings?: { label?: string; fields?: Record<string, string>; note?: string } };
 }
 
 /**
@@ -40,6 +43,51 @@ export type PluginLocales = Record<string, PluginLocale>;
  * its root (see the README); this name is then the fallback, shown when there is no image.
  */
 export type PluginManifestIcon = string;
+
+/** The conversation's hooks a tool may bind to (2026-10-20). */
+export type PluginHookName = "message" | "composer" | "settings";
+
+/** What the link or the group of a hook says, and its icon. */
+export interface PluginHookDeclaration {
+  /** In English, at most 64 characters; translated under `locales.<lang>.hooks`. */
+  label: string;
+  /** An Ionicon the app lends, named as the manifest's `icon` is. */
+  icon: string;
+}
+
+/** One row of a tool's settings, drawn by the app. */
+export interface PluginSettingsField {
+  /** The name of its value in `values`: `^[a-z][a-zA-Z0-9]*$`, at most 32, unique in the group. */
+  key: string;
+  /** A select, whose options the tool gives in `options` when it runs, or a toggle. */
+  type: "select" | "toggle";
+  /** In English, at most 64 characters; translated under `locales.<lang>.hooks.settings.fields`. */
+  label: string;
+}
+
+/** The `settings` hook: a group of rows on the contact's or circle's page. */
+export interface PluginSettingsDeclaration extends PluginHookDeclaration {
+  /** One to eight rows, in order. */
+  fields: PluginSettingsField[];
+  /** A line under the rows, in English, at most 200 characters. */
+  note?: string;
+}
+
+/**
+ * `hooks` in `module.json` (2026-10-20, from app 1.7.0): which of the conversation's hooks this
+ * tool binds to. `message` is a link inside each received text message, whose result replaces the
+ * text (the original a tap away); `composer` has no button: the app runs it on its own when the
+ * user sends, and sends its result; `settings` is a group of rows the app draws on the contact's
+ * or circle's page from the declared fields. The app runs the tool hidden and hands it each run
+ * through `onHook`; it knows nothing of what the tool does. `message` and `composer` need
+ * `messages: "given"`, and `composer` also `send: "propose"`; `settings` needs nothing. Tools only:
+ * the app refuses a game with hooks, or an unknown hook.
+ */
+export interface PluginManifestHooks {
+  message?: PluginHookDeclaration;
+  composer?: PluginHookDeclaration;
+  settings?: PluginSettingsDeclaration;
+}
 
 /** What the plugin is opened with. */
 export interface PluginOpen {
@@ -75,7 +123,7 @@ export interface PluginOpen {
    *  and its own for this plugin. It says nothing of who the contact is, and it is this phone's
    *  alone: the other side has another one, so never send it, not even over `live`. Key what you
    *  keep per conversation (a match, a list) by it. Absent when the plugin was opened outside a
-   *  conversation (from Settings, say). */
+   *  conversation (from Settings, say). The same key as `PluginHook.chat` (2026-10-20). */
   chat?: string;
   /** Opened by the app inside a call to show something to the other side (from app 1.6.0,
    *  2026-10-08): `"lead"` on the phone that presents, `"follow"` on the phone that watches. The
@@ -83,6 +131,114 @@ export interface PluginOpen {
    *  follower shows it, read-only. Absent when the plugin was not opened to present, and on an
    *  older app; a plugin that does not know it simply ignores it. */
   presenting?: "lead" | "follow";
+  /** The hook the window is in view for (2026-10-20, from app 1.7.0): the running hook's name
+   *  after `show()`. Absent otherwise. */
+  hook?: PluginHookName;
+  /** Which Ionic the app lends this frame (from app 1.6.0): its `@ionic/core` version, also on the
+   *  frame's root as `data-ionic`. Absent on an older app, which lends none. See `PluginIonic`. */
+  ionic?: PluginIonic;
+}
+
+/** One run of a hook (2026-10-20, from app 1.7.0), as `onHook` gets it. */
+export interface PluginHook {
+  name: PluginHookName;
+  /** The message or the draft (`message`, `composer`). For `settings`: on the hidden run
+   *  (`manual: false`), the last 5 texts received in the conversation, one per line, when the app
+   *  has any and the tool has `messages: "given"`; "" otherwise. */
+  text: string;
+  /** Opaque, stable per chat and per plugin: the key to keep per-chat settings under. The same
+   *  as `PluginOpen.chat`. */
+  chat: string;
+  /** The message's reference (`message` only), as `PluginOpen.ref`; null otherwise. */
+  ref: string | null;
+  /** The app's language (`es`, `zh-TW`). */
+  lang: string;
+  /** Whether the user started it; false when the app runs it on its own (automatic). */
+  manual: boolean;
+  /** What the tool runs on: `android`, `ios` (an iPhone or an iPad) or `desktop`. An iPhone shows
+   *  its own sheet before it downloads a language, so a tool need not ask first there; Android
+   *  shows none, so the tool asks (`ask`). */
+  platform: "android" | "ios" | "desktop";
+  /** True when the app runs the hook again because the user said yes to its `ask`. */
+  answer?: boolean;
+  /** `settings` with `manual: true`: the values the user changed, by field key (a select's value,
+   *  a toggle's true or false). */
+  values?: Record<string, string | boolean>;
+}
+
+/**
+ * What a hook run gives back. `text`: for `message`, what the app shows (and keeps) in place of
+ * the message's text, with a way back to the original; for `composer`, what is sent. For
+ * `settings`, every run gives back the group as it is: `values`, `options`, `lang` and `auto`.
+ */
+export interface PluginHookResult {
+  text?: string;
+  /** The conversation's language (`settings`), as a language tag (`de`, `zh-Hant`), told from what
+   *  was received or chosen by the user; null when it has none. */
+  lang?: string | null;
+  /** What the app runs on its own in this conversation (`settings`): `message` on every text
+   *  message received while it is open, `composer` when the user sends. */
+  auto?: { message?: boolean; composer?: boolean };
+  /** A yes or a no to ask the user first, such as a download, instead of opening the window: the
+   *  app shows `text` in an alert (OK / Cancel) and, on OK, runs the hook again with
+   *  `answer: true`. */
+  ask?: { text: string };
+  /** The settings' values by field key (`settings`): what the app shows in each row. */
+  values?: Record<string, string | boolean>;
+  /** The choices of each select field by key (`settings`), in order, each with its value and the
+   *  label the app shows, in the app's language. */
+  options?: Record<string, { value: string; label: string }[]>;
+}
+
+/**
+ * The Ionic the app lends every frame (2026-10-09, from app 1.6.0): the app's own `@ionic/core`,
+ * every component registered before the plugin's module runs, its global CSS, a theme derived
+ * from the app's colours, and the controllers on `ftIonic`. A plugin targets the major version
+ * (`9` for `9.0.4`): the app keeps that major's API for the plugins it lends it to; a new major is
+ * a new contract. A package must not bundle Ionic itself.
+ */
+export interface PluginIonic {
+  /** `@ionic/core`'s version, as `9.0.4`. Target its major (`9`), not the exact version. */
+  version: string;
+}
+
+/** An Ionic overlay controller, as `@ionic/core` exports it; typed loosely here, see Ionic's docs. */
+export interface FtIonicController {
+  create(options?: Record<string, unknown>): Promise<HTMLElement & { present(): Promise<void>; dismiss(data?: unknown, role?: string): Promise<boolean>; onDidDismiss(): Promise<{ data?: unknown; role?: string }> }>;
+  dismiss(data?: unknown, role?: string, id?: string): Promise<boolean>;
+  getTop(): Promise<HTMLElement | undefined>;
+}
+
+/**
+ * `globalThis.ftIonic` (from app 1.6.0): what of Ionic is not an element. Every component is
+ * already defined, so `<ion-button>` or `document.createElement("ion-alert")` just work; this is
+ * for the controllers, the icons and the platform helpers. Frozen. Absent on an older app.
+ */
+export interface FtIonic {
+  /** `@ionic/core`'s version, as on `PluginOpen.ionic`. */
+  readonly version: string;
+  /** `ionicons`' version. */
+  readonly ionicons: string;
+  /** Every component defined in the frame, as tag names (`ion-button`…). */
+  readonly components: readonly string[];
+  /** The Ionicons registered by name, so `<ion-icon name="…">` draws them with no fetch. Any other
+   *  icon goes by its SVG: `icon.icon = trashOutline` (from `ionicons/icons`), or `addIcons`. */
+  readonly icons: readonly string[];
+  readonly actionSheetController: FtIonicController;
+  readonly alertController: FtIonicController;
+  readonly loadingController: FtIonicController;
+  readonly modalController: FtIonicController;
+  readonly popoverController: FtIonicController;
+  readonly toastController: FtIonicController;
+  readonly menuController: Record<string, (...args: unknown[]) => unknown>;
+  /** Registers icons by name: `{ "trash-outline": trashOutline }`, each an SVG `data:` URL. */
+  readonly addIcons: (icons: Record<string, string>) => void;
+  readonly createAnimation: (...args: unknown[]) => unknown;
+  readonly createGesture: (...args: unknown[]) => unknown;
+  /** `ios` or `md`: the app's, which Ionic picks from the phone. */
+  readonly getMode: () => "ios" | "md";
+  readonly isPlatform: (platform: string) => boolean;
+  readonly getPlatforms: () => string[];
 }
 
 /** One record of the plugin's own, as `records.keys` lists it. */
@@ -264,6 +420,38 @@ export interface PluginLocation {
   at: number;
 }
 
+/** Whether a language pair can be used right now, after a download, or not at all. */
+export type PluginTranslationStatus = "installed" | "downloadable" | "unsupported";
+
+/**
+ * Translation on the phone (2026-10-20, from app 1.7.0). The text never leaves the phone: on
+ * iPhone (iOS 18 or newer) the translation is done by iOS; on Android the translator is Google's
+ * ML Kit, built into the app, and Google receives which languages are used and diagnostic data
+ * about the app, not the text. Language packs are downloaded once from Apple or Google.
+ *
+ * The state is per pair of languages, because that is how iOS gives it, so a plugin goes in
+ * order: `detect` → `status` → `prepare` when the pair is `downloadable` → `translate`. A text has
+ * 1 to 5 000 characters; the core waits about 30 seconds for `detect` and `translate` and about
+ * 5 minutes for `prepare`. Every call resolves and never throws: without the permission, on a
+ * phone that cannot translate (a desktop, an iPhone before iOS 18) or when something fails,
+ * `languages` gives `[]`, `detect` and `translate` give `null`, `status` gives `"unsupported"`,
+ * and `prepare` and `remove` give `false`.
+ */
+export interface PluginTranslator {
+  /** BCP-47 tags this phone can translate between ("es", "pt", "zh-Hans"); empty = cannot translate. */
+  languages(): Promise<string[]>;
+  /** Guesses the language of a text on the phone; null when it cannot tell. */
+  detect(text: string): Promise<string | null>;
+  /** Whether this pair is ready, needs a download, or is not available on this phone. */
+  status(from: string, to: string): Promise<PluginTranslationStatus>;
+  /** Downloads what the pair needs; may show a system sheet. Resolves true when ready. */
+  prepare(from: string, to: string): Promise<boolean>;
+  /** Removes a downloaded pack when the phone lets the app do it (Android); false otherwise. */
+  remove(from: string, to: string): Promise<boolean>;
+  /** Translates on the phone; `from` and `to` are required. Resolves null when it could not. */
+  translate(text: string, from: string, to: string): Promise<string | null>;
+}
+
 /** What a call the core made for the plugin brought back. `body` is base64. */
 export interface PluginAnswer {
   status: number;
@@ -293,6 +481,22 @@ export type PluginIcon = string;
 export interface FlickerTalk {
   /** Called when the app opens the plugin. Register it while the module loads. */
   onOpen(handler: (opened: PluginOpen) => void): void;
+
+  /**
+   * Called once per hook run (2026-10-20, from app 1.7.0): the app opens the tool hidden in the
+   * chat and hands it the hook; resolve with the result, or with null when there is nothing to
+   * show or keep (then nothing changes). Register it while the module loads. The app waits up to
+   * 5 minutes, about what a language pack takes to download; after that it keeps nothing and
+   * tells the user the tool did not answer. See `PluginManifestHooks`.
+   */
+  onHook(handler: (hook: PluginHook) => Promise<PluginHookResult | null>): void;
+
+  /**
+   * Shows the plugin's window if it is running hidden for a hook, to ask the user something
+   * first (a download, a language); a no-op otherwise. The window closes by itself when the
+   * hook's result arrives. Call it before drawing anything the user must see.
+   */
+  show(): void;
 
   /**
    * Asks the app to ask the user for a file, in the system's own picker. The plugin never opens
@@ -375,6 +579,13 @@ export interface FlickerTalk {
    */
   location(): Promise<PluginLocation | null>;
 
+  /**
+   * On-device translation (2026-10-20). Needs the `translate` permission; the app asks the user
+   * the first time a call needs it. From app 1.7.0: a plugin that uses it sets `minCoreVersion`
+   * to 1.7.0. See `PluginTranslator`.
+   */
+  translate: PluginTranslator;
+
   /** Closes the plugin's window. */
   close(): void;
 
@@ -393,6 +604,8 @@ export interface FlickerTalk {
 declare global {
   // eslint-disable-next-line no-var
   var ft: FlickerTalk;
+  // eslint-disable-next-line no-var
+  var ftIonic: FtIonic | undefined;
 }
 
 export {};

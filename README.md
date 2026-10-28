@@ -29,7 +29,9 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 
 | Llamada | Qué hace | Permiso |
 | --- | --- | --- |
-| `ft.onOpen(fn)` | lo que el usuario le entrega, si la app va en oscuro y, en una llamada, si presenta o sigue (desde la app 1.6.0) | `messages` para el texto |
+| `ft.onOpen(fn)` | what the user hands it, whether the app is dark and, in a call, whether it presents or follows (from app 1.6.0) | `messages` for the text |
+| `ft.onHook(fn)` | a run of a chat hook the tool binds to (`hooks` in `module.json`): the app runs the tool hidden, hands it the text, and waits up to 5 minutes for its result (from app 1.7.0, 2026-10-20; see "Chat hooks") | `messages: given` for `message` and `composer` |
+| `ft.show()` | brings the window up while the tool runs hidden for a hook, to ask the user something; a no-op otherwise (from app 1.7.0) | ninguno |
 | `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
 | `ft.takePhoto()` | abre la app de cámara del teléfono y devuelve la foto como `pickFile`, o `null` si el usuario vuelve atrás, no hay cámara o no está permitida (desde la app 1.4.1) | ninguno |
 | `ft.send(name, mime, data)` | entrega un fichero al chat; lo envía la app | `send` |
@@ -44,6 +46,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.live.send/onMessage` | hablar con el mismo plugin al otro lado de la conversación, por la conexión directa, cifrado; nunca por el servidor (2026-09-27) | `live` en los dos teléfonos |
 | `ft.drive.status/connect/list/mkdir/rename/move/remove/upload/keep/open/save/send/retry/cancel/backup/restore/disconnect` | la nube del propio usuario (Google Drive): el núcleo hace el login, sella en el teléfono y sube; el plugin ve nombres y tamaños, nunca bytes, tokens ni la frase de recuperación (2026-09-27). Crear el drive y abrir uno de otro teléfono se hace solo en Ajustes → Copia de seguridad de la app (2026-09-28) | `drive` |
 | `ft.location()` | dónde está el teléfono ahora, una sola vez y solo con la app abierta: `{lat, lon, accuracy, at}` (metros y milisegundos), o `null` si el usuario o el teléfono se niegan, la ubicación está apagada o no hay posición en ~15 s. El teléfono pregunta la primera vez. Para compartirla, el plugin deja un URI `geo:` en la caja de escribir con `say` (RFC 5870, `geo:40.41680,-3.70380;u=35`) y la envía el usuario; el otro lado ve una tarjeta que abre su propia app de mapas, sin plugin y sin cargar ningún mapa (2026-10-02) | `location` |
+| `ft.translate.languages/detect/status/prepare/remove/translate` | translation on the phone: the languages this phone has, a guess of a text's language, whether a pair of languages is ready, its download, its removal (Android) and the translation; the text never leaves the phone (from app 1.7.0, 2026-10-20; see "On-device translation") | `translate` |
 | `ft.openChat(ref)` | vuelve a la conversación de la que salió el mensaje (`ref` de `onOpen`), sin saber con quién es (2026-09-27) | ninguno |
 | `ft.close()` | cierra su ventana | ninguno |
 | `ft.onClose(fn)` | avisa de que la ventana se va a cerrar, para despedirse del otro lado (desde la app 1.3.0) | ninguno |
@@ -120,13 +123,13 @@ ft.notify("Waiting for the other player…", { sticky: true });
 ft.notify(""); // quita el aviso fijo
 ```
 
-**Presentar en una llamada** (desde la app 1.6.0, 2026-10-08): en una llamada, la app puede abrir
-un plugin a pantalla completa en los dos teléfonos para enseñar algo (una pizarra, un PDF).
-`ft.onOpen` trae entonces `presenting`: `"lead"` en el teléfono que presenta y `"follow"` en el que
-mira. Los dos hablan por `ft.live` como siempre: el que presenta manda lo que cambia (un trazo, una
-página) y el que sigue lo enseña sin editar. Fuera de una presentación, y en una app anterior,
-`presenting` no está; un plugin que no lo conoce no tiene que hacer nada. No pide permisos nuevos:
-lo que viaja necesita `live` en los dos teléfonos.
+**Presenting in a call** (from app 1.6.0, 2026-10-08): during a call, the app can open a plugin
+full screen on both phones to show something (a whiteboard, a PDF). `ft.onOpen` then carries
+`presenting`: `"lead"` on the phone that presents and `"follow"` on the phone that watches. The two
+talk over `ft.live` as always: the presenter sends what changes (a stroke, a page) and the follower
+shows it without editing. Outside a presentation, and on an older app, `presenting` is absent; a
+plugin that does not know it has nothing to do. It asks for no new permission: what travels needs
+`live` on both phones.
 
 ```js
 ft.onOpen(({ presenting }) => {
@@ -137,6 +140,145 @@ ft.onOpen(({ presenting }) => {
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
 el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
+
+## On-device translation
+
+From app **1.7.0** (2026-10-20) a plugin may translate text on the phone with `ft.translate`
+(`PluginTranslator` in `index.d.ts`). It asks for it in `module.json`, and the app asks the user
+the first time a call needs it:
+
+```json
+"minCoreVersion": "1.7.0",
+"permissions": { "translate": true }
+```
+
+**Privacy.** The text never leaves the phone. On iPhone the translation is done by iOS. It needs
+iOS 18 or newer. On Android the translator is Google's ML Kit, built into the app: the text stays
+on the phone. Google receives which languages are used and diagnostic data about the app, not the
+text. Language packs are downloaded once from Apple or Google, which therefore see which language
+was asked for and from which IP address; never the text.
+
+**The flow.** The state is per pair of languages, because that is how iOS gives it, so a plugin
+goes through it in order, with no error codes to decode:
+
+1. `languages()`: the BCP-47 tags this phone can translate between (`es`, `pt`, `zh-Hans`). Each
+   phone gives what it has, so an Android phone and an iPhone may list different ones. Empty means
+   this phone cannot translate (a desktop, an iPhone before iOS 18): say so in one sentence.
+   `onOpen`'s `lang` is the app's language (`zh-CN`), which may not be a tag of the list as such:
+   match it on its first subtag.
+2. `detect(text)`: the language of the text, guessed on the phone, or `null` when it cannot tell.
+   Let the user correct it.
+3. `status(from, to)`: `"installed"` (ready), `"downloadable"` (it needs a language pack first) or
+   `"unsupported"` (not on this phone, or a tag the phone does not know).
+4. `prepare(from, to)`, when the pair is `"downloadable"`: tell the user first that a pack is about
+   to be downloaded and roughly how big it is (about 30 MB a language on Android), with an
+   `ion-alert`. On iPhone, iOS shows its own sheet as well. Resolves `true` when the pair is ready.
+5. `translate(text, from, to)`: the translation, or `null` when it could not be done.
+
+`remove(from, to)` deletes the pair's downloaded packs on Android, where they live in the app's
+own storage and would otherwise only go when the app's data is cleared; on iPhone they are managed
+in the phone's Settings, and it resolves `false`.
+
+**Limits.** A text has 1 to 5 000 characters, about one message; an empty or longer one gives
+`null`. The core waits about 30 seconds for `detect` and `translate`, and about 5 minutes for
+`prepare`. Every call resolves and never throws: refused by the user, on a phone that cannot, or
+when something fails, `languages()` gives `[]`, `detect` and `translate` give `null`, `status`
+gives `"unsupported"`, and `prepare` and `remove` give `false`.
+
+```js
+// `text` is what to translate, `to` the language the user picked (by default the app's own).
+const from = (await ft.translate.detect(text)) ?? "en";
+let state = await ft.translate.status(from, to);
+if (state === "downloadable" && (await userAcceptsTheDownload(to))) {
+  if (await ft.translate.prepare(from, to)) state = "installed";
+}
+if (state === "installed") result.textContent = (await ft.translate.translate(text, from, to)) ?? "";
+```
+
+## Chat hooks
+
+From app **1.7.0** (2026-10-20) a tool may bind to a conversation's own screens, so the user reaches
+it without opening it. It says which hooks in `module.json`, each with its label and icon (an
+Ionicon the app lends), and gives the texts in other languages under `locales`:
+
+```json
+"minCoreVersion": "1.7.0",
+"hooks": {
+  "message":  { "label": "Translate", "icon": "language-outline" },
+  "composer": { "label": "Translate", "icon": "language-outline" },
+  "settings": { "label": "Translation", "icon": "language-outline",
+    "fields": [
+      { "key": "lang",    "type": "select", "label": "Language" },
+      { "key": "receive", "type": "toggle", "label": "Translate what I receive" },
+      { "key": "send",    "type": "toggle", "label": "Send translated" }
+    ],
+    "note": "Language packs are downloaded once; translation happens on the phone." }
+},
+"permissions": { "messages": "given", "send": "propose" },
+"locales": { "es": { "hooks": { "message": "Traducir", "composer": "Traducir",
+  "settings": { "label": "Traducción", "note": "Los paquetes de idioma se descargan una vez.",
+    "fields": { "lang": "Idioma", "receive": "Traducir lo que recibo", "send": "Enviar traducido" } } } } }
+```
+
+- `message`: a link with the hook's label inside each received text message (unless the
+  conversation's language, from `settings`, is the app's). The tool gets the message's text and
+  `ref`; the `text` it gives back replaces the message's text, with a "See original" link to go back
+  and forth, and is kept on the phone until the message is edited or deleted. Needs
+  `messages: "given"`.
+- `composer`: no button. With `auto.composer` on (from `settings`), the app runs it when the user
+  sends and sends the `text` it gives back; the user's own words stay with the message on the
+  phone. If the tool gives `null` or fails, the draft goes as written, with a notice. Needs
+  `messages: "given"` and `send: "propose"`.
+- `settings`: a group of rows on the contact's or circle's page, drawn by the app under the hook's
+  label and icon: a select (`"type": "select"`) or a toggle (`"type": "toggle"`) per field, in
+  order, and the note under them. One to eight fields; each `key` names its value. Needs nothing.
+
+**How a hook runs.** The app runs the tool **hidden**, in a frame with no window but the same
+permissions (it asks the user on the spot for one not granted yet), and hands it each run through
+`ft.onHook`: the text, the conversation's key (`chat`, the same as `onOpen`'s: keep what belongs to
+a conversation under it), the message's `ref`, the app's language, whether the user started it
+(`manual`) and what it runs on (`platform`: `"android"`, `"ios"` for an iPhone or an iPad, or
+`"desktop"`). The handler resolves with its result, or with `null` when there is nothing to show or
+keep. For a yes or a no, such as a download, the tool gives back `ask`,
+`{ ask: { text: "Download German? About 30 MB, once." } }`: the app shows the text in an alert and,
+on OK, runs the hook again with `answer: true`, and the tool goes ahead. An iPhone shows its own
+sheet before it downloads a language, so on `"ios"` a tool goes ahead without an `ask` of its own;
+on `"android"` nothing asks for it, so the tool does. For anything more,
+`ft.show()` brings the window up, and it closes by itself when the result arrives. The app waits up
+to 5 minutes for a run; after that it keeps nothing and tells the user the tool did not answer.
+While hidden, a tool may still say something short with `ft.notify` (that the text is already in
+the user's language, say).
+
+**How settings run.** The app runs `settings` hidden with `manual: false` when it opens the
+contact's or circle's page, and when a conversation opens with no language kept for it; `text` then
+holds the last 5 texts received in it, one per line (with `messages: "given"`). The tool answers
+with the whole group:
+
+```json
+{ "values": { "lang": "fr", "receive": false, "send": false },
+  "options": { "lang": [{ "value": "", "label": "None" }, { "value": "fr", "label": "French (detected)" }] },
+  "auto": { "message": false, "composer": false },
+  "lang": "fr" }
+```
+
+`values` fills each row, by key; `options` gives the choices of each select, labelled in the app's
+language; `auto` says what the app runs on its own in this conversation (`message` on each text
+received while it is open, `composer` when the user sends); `lang` is the conversation's language,
+or null. When the user changes a row, the app runs `settings` with `manual: true` and the changed
+`values`; the tool keeps them (in its own `ft.records`) and answers the same shape, or `ask` first
+when the change needs a yes. The app keeps only `auto` and `lang`, per conversation and tool.
+Nothing runs outside the conversation that is open.
+
+```js
+ft.onHook(async (hook) => {
+  if (hook.name === "message") return { text: await explain(hook.text, hook.lang) };
+  if (hook.name === "settings") return await settingsOf(hook.chat, hook.values ?? {});
+  return null;
+});
+```
+
+Hooks are Premium, like every tool. Only a tool binds to them, never a game, and the app refuses a
+manifest with a hook it does not know or without the permissions above.
 
 ## Los iconos los presta el núcleo
 
@@ -158,6 +300,98 @@ la app, así que una herramienta se ve como el resto de FlickerTalk:
 Hay unos veinte: `pencil`, `eye`, `folder-open`, `download`, `send`, `image`, `refresh`, `crop`,
 `arrow-undo`, `resize`, `options`, `add`, `document-text`, `arrow-up`, `trash`, `square`, `grid`,
 `brush` y `close`, todos en su versión `-outline`. Si falta alguno, se añade al núcleo.
+
+## Ionic, lent by the app
+
+From app **1.6.0** the app lends its own [Ionic](https://ionicframework.com) (MIT) to every plugin
+and game frame, so a plugin is drawn with the same components as the app and carries none of them.
+A plugin that relies on it sets `"minCoreVersion": "1.6.0"` in `module.json`.
+
+What the frame has before your module runs:
+
+- **`@ionic/core` 9.0.4**, every component defined as a custom element (`ion-button`, `ion-list`,
+  `ion-input`, `ion-segment`, `ion-datetime`, `ion-alert`…; the full list is `ftIonic.components`).
+- **Ionic's global CSS** (`ionic.bundle.css` without the body rules of `structure.css`): the
+  `ion-color-*` classes, typography and the utility classes (`ion-padding`, `ion-text-center`…).
+- **The theme**, derived from the app's colours (below), kept up to date while the plugin is open.
+- **`globalThis.ftIonic`**: the controllers (`alertController`, `toastController`,
+  `actionSheetController`, `modalController`, `popoverController`, `loadingController`),
+  `addIcons`, `getMode`, `isPlatform`, `createAnimation`, `createGesture`, and `version`
+  (`index.d.ts`, `FtIonic`).
+
+Which Ionic it is: `onOpen`'s `ionic.version`, `ftIonic.version`, and `data-ionic` on the frame's
+`<html>`. **Target the major version** (9): the app keeps that major's API for the plugins it lends
+it to, and a new major will be a new contract.
+
+**A package must not bundle Ionic.** It would add 250–550 KB to a plugin (more than the limits of
+most packages, and far more than a seed may weigh), and a second copy would try to define the same
+elements again. Keep `@ionic/core` (same version as the app) as a `devDependency` for your types
+and tests, and mark it external in your build; at run time use the elements and `ftIonic`.
+
+**Mode and direction.** Ionic picks `ios` or `md` from the phone, exactly as the app's own Ionic
+does, so a plugin looks like the app on each platform: read it with `ftIonic.getMode()` or
+`<html mode>`, never force one. The frame's `<html>` carries the app's `lang` and `dir` (`rtl` in
+Arabic), followed live; overlays go to the body, so set nothing of your own on `<html>`.
+
+**Theme.** The nine colours of `onOpen`'s `theme` are on the root, and the frame derives what Ionic
+reads besides: `--ion-background-color-rgb`, `--ion-text-color-rgb`, the steps
+(`--ion-background-color-step-50` … `-950`, `--ion-text-color-step-*`, the older
+`--ion-color-step-*`), shade, tint, contrast and `-rgb` of primary, success, danger and medium,
+`--ion-color-light` (the surface of a card) and `--ion-color-dark` (the text) with their
+contrasts, toolbar and card colours, and in the dark the overlays lifted onto the surface with a
+darker backdrop. `<html data-dark>` says the app is dark. Customise only through Ionic's variables.
+
+**Layout.** In a tool's window (in a chat, or on its own page) the frame is as tall as the window,
+and its `<html>` carries `data-fill`: `html` and `body` take the frame's height. Your element is a
+direct child of `<body>`; give it `display: flex; flex-direction: column; height: 100%` and put
+`ion-header` (with `ion-toolbar`), `ion-content` (`flex: 1`, the only thing that scrolls) and,
+if you need it, `ion-footer` inside. No `ion-app` is needed: the frame starts Ionic's press feedback
+and focus ring itself. The app's window already has a bar with the way out and the name, so a tool
+does not need its own ✕. In the **game room** (a game played inside a conversation) the frame
+follows its content instead and has no `data-fill`: do not use `height: 100%` there.
+
+**Draw in the light DOM** of your element. Ionic's global CSS (the `ion-color-*` classes among it)
+does not cross a shadow root of yours.
+
+**Overlays**: `ion-alert`, `ion-toast`, `ion-action-sheet`, `ion-modal` (also as a sheet),
+`ion-popover`, `ion-loading` and `ion-select` with any interface. They are placed in the frame,
+which in a tool's window is the whole window, so they land on the screen. Present them as elements
+or with the controllers:
+
+```js
+const alert = document.createElement("ion-alert");
+alert.header = "Delete the list?";
+alert.buttons = [{ text: "Cancel", role: "cancel" }, { text: "Delete", role: "destructive" }];
+document.body.appendChild(alert);
+await alert.present();
+const { role } = await alert.onDidDismiss();
+```
+
+In the game room the frame is as tall as the game, so an overlay is only on the screen if the game
+is; for a short notice prefer `ft.notify`.
+
+**Icons.** The icons the core lends at `./icon/` and the ones of the Apps grid are registered by
+name (`ftIonic.icons`), so `<ion-icon name="trash-outline"></ion-icon>` draws them. Any other
+Ionicon goes by its SVG: import it from `ionicons/icons` (a few hundred bytes each) and set
+`icon.icon = trashOutline`, or register it with `ftIonic.addIcons({ "trash-outline": trashOutline })`.
+An unregistered name would be fetched, which the frame's policy blocks: nothing is drawn.
+
+**Gotchas of the frame** (all of them before Ionic too):
+
+- **A `<form>` never submits on Android.** The frame is sandboxed without `allow-forms`, so
+  Chromium (Android's WebView) drops the submission before your `submit` handler runs; WebKit
+  submits, so it looks fine on an iPhone. Use no `<form>`: listen to the button's `click` and to
+  Enter (`keydown`) on the `ion-input`.
+- **`window.confirm()` returns false at once**, `prompt()` null and `alert()` shows nothing: the
+  sandbox has no modal dialogs. Use `ion-alert`.
+- No storage of the browser's own (`localStorage` throws) and no network: use `ft.store`,
+  `ft.records` and `ft.fetch`.
+- `hidden` does not hide an `ion-item` (its own `display` wins): set `style.display`.
+- On iOS `ion-title` is centred over the whole bar: with many buttons at the end it sits under them.
+
+**Tests.** Vitest with happy-dom runs Ionic for real: install `@ionic/core` as a `devDependency`
+and call each component's `defineCustomElement()` (from `@ionic/core/components/ion-*.js`) in the
+test setup, then the components render, and `present()`/`dismiss()` of an overlay work.
 
 ## Un plugin mínimo
 
