@@ -29,7 +29,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 
 | Llamada | Qué hace | Permiso |
 | --- | --- | --- |
-| `ft.onOpen(fn)` | lo que el usuario le entrega, y si la app va en oscuro | `messages` para el texto |
+| `ft.onOpen(fn)` | what the user hands it, whether the app is dark and, in a call, whether it presents or follows (from app 1.6.0) | `messages` for the text |
 | `ft.onHook(fn)` | a run of a chat hook the tool binds to (`hooks` in `module.json`): the app runs the tool hidden, hands it the text, and waits up to 5 minutes for its result (from app 1.7.0, 2026-10-20; see "Chat hooks") | `messages: given` for `message` and `composer` |
 | `ft.show()` | brings the window up while the tool runs hidden for a hook, to ask the user something; a no-op otherwise (from app 1.7.0) | ninguno |
 | `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
@@ -121,6 +121,21 @@ tiene, así que se pregunta antes:
 if (typeof ft.notify === "function") ft.notify("Your turn");
 ft.notify("Waiting for the other player…", { sticky: true });
 ft.notify(""); // quita el aviso fijo
+```
+
+**Presenting in a call** (from app 1.6.0, 2026-10-08): during a call, the app can open a plugin
+full screen on both phones to show something (a whiteboard, a PDF). `ft.onOpen` then carries
+`presenting`: `"lead"` on the phone that presents and `"follow"` on the phone that watches. The two
+talk over `ft.live` as always: the presenter sends what changes (a stroke, a page) and the follower
+shows it without editing. Outside a presentation, and on an older app, `presenting` is absent; a
+plugin that does not know it has nothing to do. It asks for no new permission: what travels needs
+`live` on both phones.
+
+```js
+ft.onOpen(({ presenting }) => {
+  if (presenting === "lead") live.start(); // nobody has to switch it on
+  if (presenting === "follow") board.readOnly = true;
+});
 ```
 
 Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,

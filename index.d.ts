@@ -125,6 +125,12 @@ export interface PluginOpen {
    *  keep per conversation (a match, a list) by it. Absent when the plugin was opened outside a
    *  conversation (from Settings, say). The same key as `PluginHook.chat` (2026-10-20). */
   chat?: string;
+  /** Opened by the app inside a call to show something to the other side (from app 1.6.0,
+   *  2026-10-08): `"lead"` on the phone that presents, `"follow"` on the phone that watches. The
+   *  two ends talk over `live` as always: the lead says what changes (a stroke, a page) and the
+   *  follower shows it, read-only. Absent when the plugin was not opened to present, and on an
+   *  older app; a plugin that does not know it simply ignores it. */
+  presenting?: "lead" | "follow";
   /** The hook the window is in view for (2026-10-20, from app 1.7.0): the running hook's name
    *  after `show()`. Absent otherwise. */
   hook?: PluginHookName;
