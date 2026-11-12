@@ -372,5 +372,5 @@ test("the schema's descriptions carry no plan references or dates", () => {
   };
   walk(schema);
   assert.ok(descriptions.length > 20, "the descriptions are found");
-  for (const text of descriptions) assert.doesNotMatch(text, /§|\bPlan\b|\b20\d\d-\d\d-\d\d\b/, text);
+  for (const text of descriptions) assert.doesNotMatch(text, /\u00a7|\bPlan\b|\b20\d\d-\d\d-\d\d\b/, text);
 });
