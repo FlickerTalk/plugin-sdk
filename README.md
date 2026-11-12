@@ -548,3 +548,15 @@ Ejemplos: [plugin-images](https://github.com/FlickerTalk/plugin-images),
 [plugin-redact](https://github.com/FlickerTalk/plugin-redact),
 [plugin-sketch](https://github.com/FlickerTalk/plugin-sketch),
 [plugin-markdown](https://github.com/FlickerTalk/plugin-markdown).
+
+## Tests
+
+```sh
+npm ci
+npm test
+```
+
+`tests/module.test.mjs` holds the schema to the rules the app applies when it opens a package
+(`crates/ft-plugins` in [FlickerTalk/app](https://github.com/FlickerTalk/app)). The cases for a
+game come from the app's own test, `a_game_may_ask_only_for_the_live_channel_and_sending`: a rule
+that changes there changes here too.
