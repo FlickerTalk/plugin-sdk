@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flickertalk.com/schemas/module.schema.json",
+  "title": "FlickerTalk plugin manifest",
+  "description": "What module.json says about a plugin. The app reads it only after the catalogue's signature checks out.",
+  "type": "object",
+  "required": ["id", "name", "version", "minCoreVersion", "components"],
+  "additionalProperties": false,
+  "if": { "properties": { "kind": { "const": "game" } }, "required": ["kind"] },
+  "then": {
+    "properties": {
+      "permissions": {
+        "propertyNames": { "enum": ["live", "send"] },
+        "properties": { "send": { "enum": ["nothing", "propose"] } }
+      },
+      "opens": { "maxItems": 0 },
+      "views": { "maxItems": 0 },
+      "hooks": { "maxProperties": 0 }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "hooks": { "anyOf": [{ "required": ["message"] }, { "required": ["composer"] }] } }, "required": ["hooks"] },
+      "then": { "required": ["permissions"], "properties": { "permissions": { "required": ["messages"], "properties": { "messages": { "const": "given" } } } } }
+    },
+    {
+      "if": { "properties": { "hooks": { "required": ["composer"] } }, "required": ["hooks"] },
+      "then": { "required": ["permissions"], "properties": { "permissions": { "required": ["send"], "properties": { "send": { "const": "propose" } } } } }
+    }
+  ],
+  "$defs": {
+    "hookLabel": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "\\S" },
+    "hookNote": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
+    "fieldKey": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$", "maxLength": 32 },
+    "settings": {
+      "description": "A group of settings per conversation that the app draws on the contact's or circle's page: the fields, in order, and an optional note under them.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "icon", "fields"],
+      "properties": {
+        "label": { "description": "The group's title, in English; translated under locales.", "$ref": "#/$defs/hookLabel" },
+        "icon": { "description": "An Ionicon the app lends, as icon.", "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 64 },
+        "fields": {
+          "description": "The rows: a select, whose options the tool gives when it runs, or a toggle. Each key is the name of its value in the hook's values; keys are unique.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "type", "label"],
+            "properties": {
+              "key": { "$ref": "#/$defs/fieldKey" },
+              "type": { "enum": ["select", "toggle"] },
+              "label": { "$ref": "#/$defs/hookLabel" }
+            }
+          }
+        },
+        "note": { "description": "A line under the fields, in English; translated under locales.", "$ref": "#/$defs/hookNote" }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "icon"],
+      "properties": {
+        "label": { "description": "What the button or the row says, in English; translated under locales.", "$ref": "#/$defs/hookLabel" },
+        "icon": { "description": "An Ionicon the app lends, as icon.", "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 64 }
+      }
+    }
+  },
+  "properties": {
+    "id": {
+      "description": "Reverse domain name, lowercase; the folder the plugin is served from.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9]+)+$",
+      "maxLength": 128
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "minCoreVersion": {
+      "description": "The oldest FlickerTalk this plugin runs on.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "components": {
+      "description": "The web components it registers; the first one is what the app shows.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "type": "string", "pattern": "^ft-[a-z0-9-]+$" }
+    },
+    "kind": {
+      "description": "What it is to the user: a tool, opened from the chat, \"open with\" or as a viewer; or a game, opened from the games with a contact. A tool unless it says otherwise. A game may ask only for live and send, and opens no file; it needs minCoreVersion 1.3.0 or newer to be published.",
+      "enum": ["tool", "game"],
+      "default": "tool"
+    },
+    "hooks": {
+      "description": "The conversation's hooks this tool binds to (from app 1.7.0): message, a link inside each received text message, whose result replaces the text; composer, what the app runs on its own when the user sends, whose result is what is sent; settings, a group of fields the app draws on the contact's or circle's page. The app runs the tool hidden and knows nothing of what it does. message and composer need messages: \"given\", and composer also send: \"propose\". Tools only: a game binds to no hook.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "message": { "$ref": "#/$defs/hook" },
+        "composer": { "$ref": "#/$defs/hook" },
+        "settings": { "$ref": "#/$defs/settings" }
+      }
+    },
+    "summary": {
+      "description": "One line about what it does, for the catalogue. In English.",
+      "type": "string",
+      "maxLength": 200
+    },
+    "icon": {
+      "description": "The name of an Ionicon (outline style, e.g. image-outline) the app shows for this plugin in its Apps grid and sheets. Without it the app shows a generic tool or game icon.",
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "maxLength": 64
+    },
+    "locales": {
+      "description": "The name and the summary in other languages, by the app's language code: es, pt, fr, de, it, ro, ru, uk, pl, tr, ar, hi, bn, id, vi, th, ja, ko, zh-CN, zh-TW. The app (from 1.3.0) shows the one of its language, then of its base language (zh for zh-TW), and the English top-level name and summary otherwise. A code the app does not speak is never shown. English is the top level, so there is no en.",
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[a-z]{2,3}(-[A-Z]{2}|-[A-Z][a-z]{3})?$",
+        "not": { "const": "en" }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "\\S" },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
+          "hooks": {
+            "description": "The hooks' labels in this language, and the settings' title, field labels by key, and note.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "message": { "$ref": "#/$defs/hookLabel" },
+              "composer": { "$ref": "#/$defs/hookLabel" },
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "label": { "$ref": "#/$defs/hookLabel" },
+                  "fields": {
+                    "type": "object",
+                    "propertyNames": { "$ref": "#/$defs/fieldKey" },
+                    "additionalProperties": { "$ref": "#/$defs/hookLabel" }
+                  },
+                  "note": { "$ref": "#/$defs/hookNote" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "views": {
+      "description": "The kinds of file it is the viewer of: exact media types only, each also in opens. A tap on such a file in the chat opens it here without the user choosing, so a viewer may not ask for network.",
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.+_-]*/[a-z0-9][a-z0-9.+_-]*$" }
+    },
+    "opens": {
+      "description": "The kinds of file it opens: media types like image/png, image/* or */* for any. The app offers \"open with\" for a message whose file matches, and the plugin gets the bytes in onOpen.",
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "pattern": "^(\\*/\\*|[a-z0-9][a-z0-9.+_-]*/(\\*|[a-z0-9][a-z0-9.+_-]*))$" }
+    },
+    "permissions": {
+      "description": "What it asks the user for. Installing grants none of it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": {
+          "description": "Hosts it may reach, never wildcards or URLs. The core checks every call against this.",
+          "type": "array",
+          "maxItems": 8,
+          "items": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$" }
+        },
+        "messages": {
+          "description": "Whether it may read the message or text the user hands it. It never reads more.",
+          "enum": ["given", "none"]
+        },
+        "send": {
+          "description": "How far it goes when it writes in the chat: not at all, it fills the composer, or it sends.",
+          "enum": ["nothing", "propose", "auto"]
+        },
+        "print": {
+          "description": "Whether it may ask the phone to print what it made. The user picks the printer.",
+          "type": "boolean"
+        },
+        "live": {
+          "description": "Whether it may talk to the same plugin on the other side of a conversation, over the direct connection, encrypted; never through a server.",
+          "type": "boolean"
+        },
+        "remind": {
+          "description": "Whether it may set reminders: a notification on this phone at a time it picks.",
+          "type": "boolean"
+        },
+        "drive": {
+          "description": "Whether it may keep files in the user's own cloud through the core's vault, encrypted on the phone.",
+          "type": "boolean"
+        },
+        "storage": {
+          "description": "How much it may keep in its records: small (4 MB, the default) or large (256 MB).",
+          "enum": ["small", "large"]
+        },
+        "location": {
+          "description": "Whether it may ask for the phone's current position, once, while the app is open; the phone asks the user the first time.",
+          "type": "boolean"
+        },
+        "translate": {
+          "description": "Whether it may translate text on the phone: with iOS's own translator on iPhone, and with Google's ML Kit, built into the app, on Android. The text never leaves the phone; language packs are downloaded once from Apple or Google, and on Android Google receives which languages are used and diagnostic data about the app, not the text. From app 1.7.0.",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
