@@ -29,7 +29,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 
 | Llamada | Qué hace | Permiso |
 | --- | --- | --- |
-| `ft.onOpen(fn)` | what the user hands it, whether the app is dark and, in a call, whether it presents or follows (from app 1.6.0) | `messages` for the text |
+| `ft.onOpen(fn)` | what the user hands it, whether the app is dark, in a call whether it presents or follows (from app 1.6.0), and whether a game plays alone (see "Playing alone") | `messages` for the text |
 | `ft.onHook(fn)` | a run of a chat hook the tool binds to (`hooks` in `module.json`): the app runs the tool hidden, hands it the text, and waits up to 5 minutes for its result (from app 1.7.0; see "Chat hooks") | `messages: given` for `message` and `composer` |
 | `ft.show()` | brings the window up while the tool runs hidden for a hook, to ask the user something; a no-op otherwise (from app 1.7.0) | ninguno |
 | `ft.pickFile(accept)` | un fichero, elegido por el usuario en el selector del sistema; pedir `image/*` abre el selector de fotos, que es una hoja sobre la app | ninguno |
@@ -135,6 +135,20 @@ plugin that does not know it has nothing to do. It asks for no new permission: w
 ft.onOpen(({ presenting }) => {
   if (presenting === "lead") live.start(); // nobody has to switch it on
   if (presenting === "follow") board.readOnly = true;
+});
+```
+
+**Playing alone** (a game): every install carries a contact called FlickerTalk. When a game is
+opened in the conversation with that contact, `ft.onOpen` carries `solo: true` and `live: false`:
+there is nobody on the other phone, so the game plays the other side itself, on this phone. `chat`
+is there as in any conversation, so the game keeps its matches under it as usual. The app answers
+`ft.live.send` from that frame with `false` without sending anything, and hands nothing to
+`ft.live.onMessage`. Anywhere else, and on an older app, `solo` is absent; a game that does not know
+it stays as it was. The game learns nothing else about the contact.
+
+```js
+ft.onOpen(({ solo, chat }) => {
+  if (solo) match.againstPhone(chat); // never ft.live.send
 });
 ```
 

@@ -228,6 +228,31 @@ test("the README tells how a plugin presents in a call", () => {
   assert.match(readme, /1\.6\.0/, "and from which app");
 });
 
+test("onOpen says when a game plays alone in the FlickerTalk contact's conversation", () => {
+  const open = body("PluginOpen");
+  assert.match(open, /\n  solo\?: true;/, "true or absent, never false");
+  const doc = docOf(open, "solo?:");
+  assert.match(doc, /game/i, "games only");
+  assert.match(doc, /FlickerTalk contact/, "where it happens");
+  assert.match(doc, /other side/i, "the game plays the other side itself");
+  assert.match(doc, /`live` is false/, "and the live channel is off");
+});
+
+test("the README tells a game how to play alone, and that nothing goes out live", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const start = readme.indexOf("**Playing alone**");
+  assert.ok(start >= 0, "the paragraph is there");
+  const text = readme.slice(start, readme.indexOf("\n\n", readme.indexOf("```", start) + 3)).replace(/\s+/g, " ");
+  assert.ok(text.includes("`solo: true`"), "it names the field");
+  assert.ok(text.includes("`live: false`"), "the channel is off");
+  assert.match(text, /FlickerTalk/, "in which conversation");
+  assert.ok(text.includes("`ft.live.send`") && text.includes("`false`"), "a send resolves false");
+  assert.ok(text.includes("`chat`"), "the conversation's key is there as always");
+  assert.match(text, /older app/, "an older app never sets it");
+  assert.match(text, /nothing else about the contact/, "the game learns nothing of who it is");
+  assert.match(text, /ft\.onOpen\(\(\{ solo/, "with an example");
+});
+
 test("onOpen says which Ionic the app lends the frame", () => {
   const open = body("PluginOpen");
   assert.match(open, /\n  ionic\?: PluginIonic;/, "an optional description of the lent Ionic");
