@@ -62,6 +62,8 @@ export interface PluginOpen {
   chat?: string;
   /** In a call, `"lead"` on the presenting phone and `"follow"` on the other, talking over `live`. */
   presenting?: "lead" | "follow";
+  /** A game in the FlickerTalk contact's conversation: the game plays the other side itself and `live` is false. */
+  solo?: true;
   /** The running hook's name, once `show()` brought the window up. */
   hook?: PluginHookName;
   /** The Ionic the app lends, also in `data-ionic` on the root. */
