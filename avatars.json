@@ -1,0 +1,25 @@
+{
+  "who": ["ari", "noa", "milo", "juno", "kit", "lou", "rio", "sam", "umi", "val", "zuri", "nico"],
+  "hair": [
+    "none",
+    "long-fringe",
+    "ponytail",
+    "braids",
+    "long-braid",
+    "bun",
+    "bob",
+    "curly-puff",
+    "two-puffs",
+    "wavy-headband",
+    "messy-fringe",
+    "short-crop",
+    "side-part",
+    "spiky",
+    "curls",
+    "quiff",
+    "undercut",
+    "cap",
+    "mini-twists"
+  ],
+  "hairColour": ["ink", "chestnut", "copper", "golden", "cream", "silver"]
+}

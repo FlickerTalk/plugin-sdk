@@ -474,3 +474,91 @@ test("the README explains the three hooks and how settings run", () => {
   assert.ok(!/header|`chat` hook|"chat":/.test(text), "no header icon and no chat hook any more");
   assert.ok(!/forever/i.test(text), "never 'forever'");
 });
+
+const extending = (name, base) => {
+  const opening = `export interface ${name} extends ${base} {`;
+  const start = types.indexOf(`\n${opening}`);
+  assert.ok(start >= 0, `${name} extends ${base}`);
+  return types.slice(start + 1, types.indexOf("\n}\n", start + 1));
+};
+
+test("a player's face is three ids from the cast, the only part a game may send", () => {
+  const face = body("PluginFace");
+  for (const field of ["who: string;", "hair: string;", "hairColour: string;"]) assert.ok(face.includes(`\n  ${field}`), `${field} is declared`);
+  const doc = typeDoc("export interface PluginFace {");
+  assert.match(doc, /`avatars\.json`/, "where the ids come from");
+  assert.match(doc, /other phone/, "it is what may travel");
+});
+
+test("a player is a face and a name, the same in every game, one per PIN session, and its name never travels", () => {
+  const player = extending("PluginPlayer", "PluginFace");
+  assert.ok(player.includes("\n  name: string;"), "name is declared");
+  const doc = typeDoc("export interface PluginPlayer extends PluginFace {");
+  assert.match(doc, /every game/i, "shared by the games of this phone");
+  assert.match(doc, /PIN session/, "each hidden session keeps its own");
+  assert.match(doc, /never send `name`/i, "the name stays on the phone");
+});
+
+test("a game reads and replaces the shared player, and no call throws", () => {
+  const players = body("PluginPlayers");
+  assert.ok(players.includes("\n  get(): Promise<PluginPlayer | null>;"), "get is declared");
+  assert.ok(players.includes("\n  set(player: PluginPlayer): Promise<boolean>;"), "set is declared");
+  assert.match(typeDoc("export interface PluginPlayers {"), /never throws/i);
+  assert.match(docOf(players, "get("), /`null`/, "what an empty record gives");
+  const set = docOf(players, "set(");
+  assert.match(set, /whole record/i, "it replaces everything");
+  assert.match(set, /`avatars\.json`/, "the ids are checked against the cast");
+  assert.match(set, /clean/, "the name must be clean");
+  assert.match(set, /40 characters/, "and short");
+  assert.match(set, /extra field/, "nothing else is kept");
+});
+
+test("ft.player is for games only and absent on an older app", () => {
+  const api = body("FlickerTalk");
+  assert.ok(api.includes("\n  player?: PluginPlayers;"), "an optional member");
+  assert.ok(api.indexOf("player?:") > api.indexOf("store:"), "it sits next to store");
+  const doc = docOf(api, "player?:");
+  assert.match(doc, /games only/i);
+  assert.match(doc, /`null`/, "what a tool reads");
+  assert.match(doc, /`false`/, "what a tool's write gives");
+  assert.match(doc, /older app/, "an older app has none");
+  assert.match(doc, /check `ft\.player`/, "so a game asks first");
+});
+
+test("the README lists ft.player for games, with no permission", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const row = readme.split("\n").find((line) => line.startsWith("| `ft.player.get/set` |"));
+  assert.ok(row, "it is in the table");
+  assert.match(row, /game/i, "games only");
+  assert.match(row, /One player in every game/, "it points at its section");
+  assert.match(row, /\| ninguno \|$/, "and asks for no permission");
+});
+
+test("the README tells a game's author what it reads and writes, what the app checks and what an older app does", () => {
+  const text = section(readFileSync(join(root, "README.md"), "utf8"), "One player in every game").replace(/\s+/g, " ");
+  for (const needed of [
+    "`ft.player.get()`", "`ft.player.set(player)`", "`kind: \"game\"`", "`avatars.json`", "`player.schema.json`",
+    "`who`", "`hair`", "`hairColour`", "`name`", "`flick`", "`ft.store`", "`ft.live`", "`minCoreVersion`",
+    "typeof ft.player?.get === \"function\"",
+  ]) {
+    assert.ok(text.includes(needed), `it says ${needed}`);
+  }
+  assert.match(text, /every game on (this|the) phone/, "one player for all the games");
+  assert.match(text, /PIN/, "each hidden session keeps its own");
+  assert.match(text, /40 characters/, "the longest name");
+  assert.match(text, /control characters/, "what makes a name unclean");
+  assert.match(text, /whole record/, "set replaces it all");
+  assert.match(text, /`false`/, "what a refusal gives");
+  assert.match(text, /`null`/, "what an empty record gives");
+  assert.match(text, /tool/, "that a tool gets nothing");
+  assert.match(text, /older app/, "what an older app does");
+  assert.match(text, /never (sends|send) the name|name never leaves/i, "the name stays on the phone");
+  assert.match(text, /only ever added/i, "ids are never renamed or reused");
+  assert.match(text, /renamed or reused/i);
+  assert.ok(!/forever/i.test(text), "never 'forever'");
+});
+
+test("the README says what is never exposed, games' shared player aside", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8").replace(/\s+/g, " ");
+  assert.match(readme, /What is \*\*never\*\* exposed: [^.]*another plugin, except the player that games share \(`ft\.player`\)\./);
+});

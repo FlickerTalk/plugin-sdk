@@ -1,8 +1,9 @@
 # plugin-sdk
 
-El contrato entre [FlickerTalk](https://flickertalk.com) y sus plugins: los **tipos de la Plugin
-API** (`index.d.ts`) y el **esquema de `module.json`** (`module.schema.json`). Nada más: sin
-runtime y sin emulador. Licencia **MIT**, para que un plugin pueda tener la licencia que quiera.
+The contract between [FlickerTalk](https://flickertalk.com) and its plugins: the **Plugin API
+types** (`index.d.ts`), the **`module.json` schema** (`module.schema.json`) and the **games' cast
+of avatars** (`avatars.json`, with `player.schema.json`). Nothing else: no runtime and no emulator.
+**MIT** licence, so a plugin may have whatever licence it likes.
 
 ## Qué es un plugin
 
@@ -41,6 +42,7 @@ haya concedido. Un plugin no puede llamar a la app por ningún otro camino.
 | `ft.print(name, mime, data)` | imprime; la impresora la elige el usuario | `print` |
 | `ft.fetch(url, options)` | una llamada que hace el núcleo, solo a los hosts concedidos | `network` |
 | `ft.store.get/set/forget` | la memoria del plugin (64 KB por clave, 64 claves) | ninguno |
+| `ft.player.get/set` | the player's avatar, the same in every game on this phone: three ids from `avatars.json` and a name, checked by the app (games only; see "One player in every game") | ninguno |
 | `ft.records.get/set/forget/keys/usage` | lo que guarda más allá de sus ajustes (notas, pizarras): 4 MB, o 256 MB con `storage: large` | `storage` para el tamaño grande |
 | `ft.remind.set/cancel/list` | un aviso en este teléfono a la hora que elija; al tocarlo se abre el plugin con `reminder` | `remind` |
 | `ft.live.send/onMessage` | hablar con el mismo plugin al otro lado de la conversación, por la conexión directa, cifrado; nunca por el servidor | `live` en los dos teléfonos |
@@ -152,8 +154,9 @@ ft.onOpen(({ solo, chat }) => {
 });
 ```
 
-Lo que **nunca** se expone: la identidad o el `device_id`, las claves, el push token, la agenda,
-el historial, los ficheros del teléfono sin selector, ni nada de otro plugin.
+What is **never** exposed: the identity or the `device_id`, the keys, the push token, the address
+book, the history, the phone's files without the picker, or anything of another plugin, except the
+player that games share (`ft.player`).
 
 ## On-device translation
 
@@ -293,6 +296,56 @@ ft.onHook(async (hook) => {
 
 Hooks are Premium, like every tool. Only a tool binds to them, never a game, and the app refuses a
 manifest with a hook it does not know or without the permissions above.
+
+## One player in every game
+
+A game (`kind: "game"`) can keep the player's avatar in the app instead of in its own `ft.store`,
+so the player chooses once and every game on this phone shows the same one. The record is four
+strings:
+
+```json
+{ "who": "juno", "hair": "curly-puff", "hairColour": "copper", "name": "Ana" }
+```
+
+- `who`, `hair` and `hairColour` are ids from `avatars.json` in this package: twelve profiles,
+  nineteen hairstyles and six hair colours. `flick`, the face of the FlickerTalk contact, is not
+  among them, so nobody can pick it.
+- `name` is what the player typed, at most 40 characters and already clean: no control characters
+  or direction marks, no space at either end and no double space. It may be empty; show the
+  profile's own name then.
+
+`ft.player.get()` resolves with the record, or `null` until the player has chosen.
+`ft.player.set(player)` replaces the whole record and resolves `true`, or `false` when the app
+keeps nothing: an id that is not in `avatars.json`, a name that is not clean or is over 40
+characters, a missing, extra or non-string field. `player.schema.json` describes exactly what the
+app accepts. What belongs to one game alone (its cars, its scores) stays in that game's `ft.store`.
+Neither call throws. A tool gets nothing: `get` gives `null` and `set` gives `false`. No permission
+is needed.
+
+Each PIN session of the app keeps its own player, like everything else a plugin stores: a name
+typed in a hidden session never shows in the main list, and deleting the session deletes it.
+
+**The name stays on the phone.** The app sends the record nowhere, and a game never sends the name
+either: not over `ft.live`, not in a text it proposes with `ft.say`, not in a log. To show each
+player the other one's face, send only the three ids (`PluginFace` in `index.d.ts`) over `ft.live`,
+and treat what arrives as untrusted: an id you do not know, or `flick`, gets a stand-in face. A name
+from the other phone is never shown: it is someone else's free text, and the conversation's header
+already says who the other person is.
+
+**On an older app** there is no `ft.player`. Ask first and keep the choice in the game's own
+`ft.store`, as before; a game does not raise `minCoreVersion` for it. When `ft.player` is there but
+still `null`, a game that kept a choice in its own `ft.store` may hand it over once with `set`.
+
+```js
+async function loadPlayer() {
+  if (typeof ft.player?.get === "function") return ft.player.get();
+  return JSON.parse((await ft.store.get("player")) ?? "null");
+}
+```
+
+**Ids are only ever added.** They are stored on phones, so an id is never renamed or reused. A new
+face, hairstyle or colour comes to `avatars.json` and to the app first; a game that offers it raises
+`minCoreVersion` to the first app that knows it, because an older app answers `set` with `false`.
 
 ## Los iconos los presta el núcleo
 
@@ -574,3 +627,7 @@ npm test
 (`crates/ft-plugins` in [FlickerTalk/app](https://github.com/FlickerTalk/app)). The cases for a
 game come from the app's own test, `a_game_may_ask_only_for_the_live_channel_and_sending`: a rule
 that changes there changes here too.
+
+`tests/player.test.mjs` holds `avatars.json` to the cast of the games kit (`kit/src/avatars/cast.js`
+in [FlickerTalk/games](https://github.com/FlickerTalk/games)) and `player.schema.json` to what the
+app accepts: an id added here is added in both of them too.
