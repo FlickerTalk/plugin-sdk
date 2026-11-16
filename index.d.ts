@@ -313,6 +313,26 @@ export interface PluginStore {
   forget(key: string): Promise<boolean>;
 }
 
+/** Ids from `avatars.json`. The only part of the player a game may send to the other phone. */
+export interface PluginFace {
+  who: string;
+  hair: string;
+  hairColour: string;
+}
+
+/** The same in every game on this phone; each PIN session keeps its own. Never send `name`. */
+export interface PluginPlayer extends PluginFace {
+  name: string;
+}
+
+/** Never throws. */
+export interface PluginPlayers {
+  /** `null` until the player has chosen. */
+  get(): Promise<PluginPlayer | null>;
+  /** Replaces the whole record. False for an id not in `avatars.json`, a name not clean or over 40 characters, or an extra field. */
+  set(player: PluginPlayer): Promise<boolean>;
+}
+
 /** An icon the app lends at `./icon/<name>.svg`. Paint it with `mask-image` and `currentColor`. */
 export type PluginIcon = string;
 
@@ -352,6 +372,9 @@ export interface FlickerTalk {
 
   /** The frame has no origin, so the browser gives it no storage. */
   store: PluginStore;
+
+  /** Games only: a tool reads `null` and writes `false`. Absent on an older app, so check `ft.player` first. */
+  player?: PluginPlayers;
 
   records: PluginRecords;
 

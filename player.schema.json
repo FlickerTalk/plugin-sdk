@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flickertalk.com/schemas/player.schema.json",
+  "title": "FlickerTalk game player",
+  "description": "The player every game on the phone shares through ft.player, exactly as the app accepts it. The ids are those of avatars.json.",
+  "type": "object",
+  "required": ["who", "hair", "hairColour", "name"],
+  "additionalProperties": false,
+  "properties": {
+    "who": {
+      "enum": ["ari", "noa", "milo", "juno", "kit", "lou", "rio", "sam", "umi", "val", "zuri", "nico"]
+    },
+    "hair": {
+      "enum": [
+        "none",
+        "long-fringe",
+        "ponytail",
+        "braids",
+        "long-braid",
+        "bun",
+        "bob",
+        "curly-puff",
+        "two-puffs",
+        "wavy-headband",
+        "messy-fringe",
+        "short-crop",
+        "side-part",
+        "spiky",
+        "curls",
+        "quiff",
+        "undercut",
+        "cap",
+        "mini-twists"
+      ]
+    },
+    "hairColour": {
+      "enum": ["ink", "chestnut", "copper", "golden", "cream", "silver"]
+    },
+    "name": {
+      "description": "Possibly empty. No control characters or direction marks, and single spaces between words only. Never sent to the other phone.",
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^(?:[^\\s\\p{Cc}\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]+(?: [^\\s\\p{Cc}\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]+)*)?$"
+    }
+  }
+}
